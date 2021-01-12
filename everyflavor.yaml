@@ -1,0 +1,8 @@
+dbUrl: root:password@tcp(localhost:3306)/everyflavor?parseTime=true
+redisUrl: localhost:6379
+redisKeys:
+  - a67ee4161400c95ed5e880aca174beb240ed666a0d9be9b942813317f144891g
+  - a67ee4161400c95ed5e880aca174beb240ed666a0d9be9b942813317f144891h
+showSql: true
+corsAllowedOrigins:
+  - "http://localhost:8080"

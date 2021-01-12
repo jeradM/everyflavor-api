@@ -1,0 +1,7 @@
+*.iml
+*.db
+.idea/
+.vscode/
+sql/csv/
+.DS_Store
+__debug_bin
