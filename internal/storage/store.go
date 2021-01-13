@@ -45,6 +45,8 @@ type UserStore interface {
 	FindAllByUsernameLike(string) ([]model.User, error)
 	GetStats(uint64) (*model.UserStats, error)
 	ListRoles([]uint64) ([]model.UserRole, error)
+	UsernameExists(string) bool
+	EmailExists(string) bool
 }
 
 type VendorStore interface {

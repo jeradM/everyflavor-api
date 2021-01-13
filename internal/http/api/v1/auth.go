@@ -4,6 +4,7 @@ import (
 	"everyflavor/internal/core"
 	"everyflavor/internal/http/api/v1/view"
 	"everyflavor/internal/storage/model"
+	"github.com/pkg/errors"
 	"net/http"
 
 	"github.com/gin-contrib/sessions"
@@ -19,6 +20,28 @@ type RegisterCmdObj struct {
 	Email     string
 }
 
+func (r *RegisterCmdObj) validate(s core.UserService) error {
+	if r.Username == "" {
+		return errors.New("Username is required")
+	}
+	if r.Email == "" {
+		return errors.New("Email is required")
+	}
+	if r.Password == "" {
+		return errors.New("Password is required")
+	}
+	if r.Password != r.PasswordC {
+		return errors.New("Passwords don't match")
+	}
+	if s.UsernameExists(r.Username) {
+		return errors.New("Username already taken")
+	}
+	if s.EmailExists(r.Email) {
+		return errors.New("Email address already taken")
+	}
+	return nil
+}
+
 type LoginCmdObj struct {
 	Username string `json:"username"`
 	Password string `json:"password"`
@@ -28,6 +51,16 @@ type ChangePasswordCmdObj struct {
 	CurrentPassword string
 	NewPassword     string
 	NewPasswordC    string
+}
+
+func (c *ChangePasswordCmdObj) validate() error {
+	if c.CurrentPassword == "" {
+		return errors.New("Current password is required")
+	}
+	if c.NewPassword != c.NewPasswordC {
+		return errors.New("Passwords don't match")
+	}
+	return nil
 }
 
 type RegisterResponse struct {
@@ -51,8 +84,8 @@ func register(s core.UserService) gin.HandlerFunc {
 			c.AbortWithStatus(http.StatusBadRequest)
 			return
 		}
-		if userObj.Password != userObj.PasswordC {
-			c.JSON(http.StatusBadRequest, RegisterResponse{Message: "passwords don't match"})
+		if err := userObj.validate(s); err != nil {
+			c.JSON(http.StatusBadRequest, RegisterResponse{Message: err.Error()})
 			return
 		}
 		u := view.User{
@@ -119,15 +152,11 @@ func changePassword(s core.UserService) gin.HandlerFunc {
 		}
 		var o ChangePasswordCmdObj
 		if err := c.ShouldBind(&o); err != nil {
-			c.AbortWithStatus(http.StatusBadRequest)
+			badRequest(c, respError(err, "Bad request"))
 			return
 		}
-		if len(o.CurrentPassword) == 0 {
-			c.AbortWithStatus(http.StatusBadRequest)
-			return
-		}
-		if o.NewPassword != o.NewPasswordC {
-			c.AbortWithStatus(http.StatusBadRequest)
+		if err := o.validate(); err != nil {
+			badRequest(c, respError(err, err.Error()))
 			return
 		}
 		err := bcrypt.CompareHashAndPassword([]byte(u.Password), []byte(o.NewPassword))
@@ -137,7 +166,7 @@ func changePassword(s core.UserService) gin.HandlerFunc {
 		}
 		err = s.UpdateUserPassword(u.ID, o.NewPassword)
 		if err != nil {
-			c.AbortWithStatus(http.StatusInternalServerError)
+			serverError(c, httpError{err: err})
 			return
 		}
 		c.JSON(http.StatusOK, "Password changed")
@@ -148,6 +177,9 @@ func logout(c *gin.Context) {
 	session := sessions.Default(c)
 	session.Clear()
 	session.Options(sessions.Options{MaxAge: -1})
-	session.Save()
+	if err := session.Save(); err != nil {
+		serverError(c, httpError{err: err})
+		return
+	}
 	c.JSON(http.StatusOK, "logged out")
 }

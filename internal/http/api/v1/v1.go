@@ -85,9 +85,9 @@ func notFound(c *gin.Context) {
 	respond(c, http.StatusNotFound, nil, "not found")
 }
 
-func serverError(c *gin.Context, e httpError) {
+func serverError(c *gin.Context, e error) {
 	logEvent(c, http.StatusInternalServerError, log.Error().Err(e))
-	respond(c, http.StatusInternalServerError, nil, e.msg)
+	respond(c, http.StatusInternalServerError, nil, "An unknown error occurred")
 }
 
 func logEvent(c *gin.Context, s int, e *zerolog.Event) {

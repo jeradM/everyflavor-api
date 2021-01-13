@@ -70,7 +70,7 @@ CREATE TABLE IF NOT EXISTS users
     created_at datetime(3) DEFAULT NOW(),
     updated_at datetime(3) DEFAULT NOW(),
     deleted_at datetime(3) DEFAULT NULL,
-    username varchar(191) DEFAULT NULL,
+    username varchar(191) NOT NULL,
     email varchar(191) DEFAULT NULL,
     password longtext DEFAULT NULL,
     PRIMARY KEY (id),
@@ -222,8 +222,8 @@ CREATE TABLE IF NOT EXISTS tags
 
 -- Foreign Keys
 ALTER TABLE batches ADD CONSTRAINT fk_batches_owner_id FOREIGN KEY (owner_id) REFERENCES users (id) ON DELETE CASCADE;
-ALTER TABLE batches ADD CONSTRAINT fk_batches_recipe_id FOREIGN KEY (recipe_id) REFERENCES recipes (id) ON DELETE CASCADE;
-ALTER TABLE flavors ADD CONSTRAINT fk_flavors_vendor_id FOREIGN KEY (vendor_id) REFERENCES vendors (id) ON DELETE CASCADE;
+ALTER TABLE batches ADD CONSTRAINT fk_batches_recipe_id FOREIGN KEY (recipe_id) REFERENCES recipes (id) ON DELETE SET NULL;
+ALTER TABLE flavors ADD CONSTRAINT fk_flavors_vendor_id FOREIGN KEY (vendor_id) REFERENCES vendors (id) ON DELETE SET NULL;
 ALTER TABLE flavor_ratings ADD CONSTRAINT fk_flavor_ratings_flavor_id FOREIGN KEY (flavor_id) REFERENCES flavors (id) ON DELETE CASCADE;
 ALTER TABLE flavor_ratings ADD CONSTRAINT fk_flavor_ratings_owner_id FOREIGN KEY (owner_id) REFERENCES users (id) ON DELETE CASCADE;
 ALTER TABLE flavor_reviews ADD CONSTRAINT fk_flavors_reviews_rating_id FOREIGN KEY (rating_id) REFERENCES flavor_ratings (id) ON DELETE CASCADE;

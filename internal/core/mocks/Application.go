@@ -115,6 +115,20 @@ func (_m *Application) CanViewRecipe(userID uint64, recipeID uint64) (bool, erro
 	return r0, r1
 }
 
+// EmailExists provides a mock function with given fields: _a0
+func (_m *Application) EmailExists(_a0 string) bool {
+	ret := _m.Called(_a0)
+
+	var r0 bool
+	if rf, ok := ret.Get(0).(func(string) bool); ok {
+		r0 = rf(_a0)
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+
+	return r0
+}
+
 // GetBatch provides a mock function with given fields: _a0
 func (_m *Application) GetBatch(_a0 uint64) (*view.Batch, error) {
 	ret := _m.Called(_a0)
@@ -691,6 +705,20 @@ func (_m *Application) UpdateUserPassword(id uint64, pw string) error {
 		r0 = rf(id, pw)
 	} else {
 		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// UsernameExists provides a mock function with given fields: _a0
+func (_m *Application) UsernameExists(_a0 string) bool {
+	ret := _m.Called(_a0)
+
+	var r0 bool
+	if rf, ok := ret.Get(0).(func(string) bool); ok {
+		r0 = rf(_a0)
+	} else {
+		r0 = ret.Get(0).(bool)
 	}
 
 	return r0

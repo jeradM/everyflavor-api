@@ -3,7 +3,6 @@ package mysql
 import (
 	"everyflavor/internal/storage"
 	"everyflavor/internal/storage/model"
-
 	"golang.org/x/crypto/bcrypt"
 
 	sq "github.com/Masterminds/squirrel"
@@ -66,6 +65,11 @@ func (r *userStore) Update(u *model.User, tx sqlx.Execer) error {
 	return err
 }
 
+func (r *userStore) Delete(u *model.User, tx sqlx.Execer) error {
+	_, err := r.store.deleteEntity(tx, u)
+	return err
+}
+
 func (r *userStore) UpdatePassword(id uint64, pw string) error {
 	q, args, err := sq.Update("users").
 		Set("password", pw).
@@ -95,7 +99,7 @@ func (r *userStore) FindByUsername(username string) (*model.User, error) {
 func (r *userStore) FindAllByUsernameLike(username string) ([]model.User, error) {
 	var userModel model.User
 	un := "%" + strings.ToLower(username) + "%"
-	q, args, err := sq.Select(userModel.SelectFields()...).
+	q, args, err := sq.Select("users.id", "users.username").
 		From(userModel.TableName()).
 		Where(sq.Expr("deleted_at IS NULL")).
 		Where(sq.Expr("lower(username) like ?", un)).
@@ -120,7 +124,7 @@ func (r *userStore) GetStats(id uint64) (*model.UserStats, error) {
 		Where("public = 0")
 	q, args, err := sq.Select().
 		Column("u.id as user_id").
-		Column("CAST(avg(rr.rating) * 1000 as UNSIGNED) as avg_rating").
+		Column("IFNULL(CAST(avg(rr.rating) * 1000 as UNSIGNED), 0) as avg_rating").
 		Column(sq.Alias(pubSQ, "num_public")).
 		Column(sq.Alias(privSQ, "num_private")).
 		From("users as u").
@@ -151,4 +155,18 @@ func (r *userStore) ListRoles(userIDs []uint64) ([]model.UserRole, error) {
 	var roles []model.UserRole
 	err = r.store.DB().Select(&roles, q, args)
 	return roles, err
+}
+
+func (r *userStore) UsernameExists(username string) bool {
+	query := "SELECT id FROM users WHERE username = ?"
+	var id uint64
+	_ = r.store.DB().Get(&id, query, []interface{}{username})
+	return id != 0
+}
+
+func (r *userStore) EmailExists(email string) bool {
+	query := "SELECT id FROM users WHERE email = ?"
+	var id uint64
+	_ = r.store.DB().Get(&id, query, []interface{}{email})
+	return id != 0
 }

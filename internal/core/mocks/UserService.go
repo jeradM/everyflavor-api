@@ -17,6 +17,20 @@ type UserService struct {
 	mock.Mock
 }
 
+// EmailExists provides a mock function with given fields: _a0
+func (_m *UserService) EmailExists(_a0 string) bool {
+	ret := _m.Called(_a0)
+
+	var r0 bool
+	if rf, ok := ret.Get(0).(func(string) bool); ok {
+		r0 = rf(_a0)
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+
+	return r0
+}
+
 // GetRolesForUsers provides a mock function with given fields: _a0
 func (_m *UserService) GetRolesForUsers(_a0 []uint64) ([]model.UserRole, error) {
 	ret := _m.Called(_a0)
@@ -174,6 +188,20 @@ func (_m *UserService) UpdateUserPassword(id uint64, pw string) error {
 		r0 = rf(id, pw)
 	} else {
 		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// UsernameExists provides a mock function with given fields: _a0
+func (_m *UserService) UsernameExists(_a0 string) bool {
+	ret := _m.Called(_a0)
+
+	var r0 bool
+	if rf, ok := ret.Get(0).(func(string) bool); ok {
+		r0 = rf(_a0)
+	} else {
+		r0 = ret.Get(0).(bool)
 	}
 
 	return r0

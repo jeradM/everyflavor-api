@@ -315,6 +315,37 @@ func (s *Store) updateEntity(tx sqlx.Execer, m model.Entity, stmtFns ...UpdateSt
 	return n, errors.Wrap(err, "failed to inspect number of affected rows")
 }
 
+func (s *Store) deleteEntity(tx sqlx.Execer, m model.Entity) (int64, error) {
+	query, args, err := sq.Delete(m.TableName()).
+		Where(sq.Eq{"id": m.GetID()}).
+		ToSql()
+	if err != nil {
+		return 0, errors.Wrap(err, "failed to build SQL delete statement")
+	}
+	result, err := s.DB().ExecWithTX(tx, query, args)
+	if err != nil {
+		return 0, errors.Wrap(err, "failed to execute SQL delete statement")
+	}
+	n, err := result.RowsAffected()
+	return n, errors.Wrap(err, "failed to inspect number of affected rows")
+}
+
+func (s *Store) softDeleteEntity(tx sqlx.Execer, m model.Entity) (int64, error) {
+	query, args, err := sq.Update(m.TableName()).
+		Set("deleted_at", sq.Expr("NOW")).
+		Where(sq.Eq{"id": m.GetID()}).
+		ToSql()
+	if err != nil {
+		return 0, errors.Wrap(err, "failed to build SQL update statement")
+	}
+	result, err := s.DB().ExecWithTX(tx, query, args)
+	if err != nil {
+		return 0, errors.Wrap(err, "failed to execute SQL update statement")
+	}
+	n, err := result.RowsAffected()
+	return n, errors.Wrap(err, "failed to inspect number of affected rows")
+}
+
 func setListParams(q sq.SelectBuilder, p model.ListParams) sq.SelectBuilder {
 	if p.GetGroup() != "" {
 		q = q.GroupBy(p.GetGroup())

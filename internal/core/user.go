@@ -24,8 +24,16 @@ func (a *App) GetUserByID(id uint64) (view.User, error) {
 	return mapper.UserFromModel(*u, roles, stats), nil
 }
 
-func (a *App) GetUserList() ([]model.User, error) {
-	return a.Store.User().List()
+func (a *App) GetUserList() ([]view.User, error) {
+	users, err := a.Store.User().List()
+	if err != nil {
+		return nil, err
+	}
+	v := make([]view.User, len(users))
+	for idx, u := range users {
+		v[idx] = mapper.UserFromModel(u, nil, nil)
+	}
+	return v, nil
 }
 
 func (a *App) SaveUser(v view.User) error {
@@ -78,4 +86,12 @@ func (a *App) GetUserStatsByID(id uint64) (*model.UserStats, error) {
 
 func (a *App) GetRolesForUsers(ids []uint64) ([]model.UserRole, error) {
 	return a.Store.User().ListRoles(ids)
+}
+
+func (a *App) UsernameExists(u string) bool {
+	return a.Store.User().UsernameExists(u)
+}
+
+func (a *App) EmailExists(e string) bool {
+	return a.Store.User().EmailExists(e)
 }

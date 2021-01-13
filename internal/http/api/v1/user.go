@@ -12,7 +12,7 @@ func SetupUserHandlers(r gin.IRouter, s core.UserService) {
 	r.GET("/user", me)
 	r.GET("/user/:id", getUser(s))
 	r.GET("/user/:id/stats", stats(s))
-	r.GET("/users/search", EnsureLoggedIn, searchUsers(s))
+	r.GET("/users/search", searchUsers(s))
 }
 
 func getUser(s core.UserService) gin.HandlerFunc {
@@ -48,7 +48,19 @@ func searchUsers(s core.UserService) gin.HandlerFunc {
 			serverError(c, respError(err, err.Error()))
 			return
 		}
-		ok(c, u)
+
+		type collab struct {
+			ID       uint64 `json:"id"`
+			Username string `json:"username"`
+		}
+		s := make([]collab, len(u))
+		for idx, user := range u {
+			s[idx] = collab{
+				ID:       user.ID,
+				Username: user.Username,
+			}
+		}
+		ok(c, s)
 	}
 }
 

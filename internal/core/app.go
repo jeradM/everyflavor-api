@@ -51,6 +51,8 @@ type UserService interface {
 	SearchUsersByUsername(username string) ([]view.User, error)
 	GetUserStatsByID(uint64) (*model.UserStats, error)
 	GetRolesForUsers([]uint64) ([]model.UserRole, error)
+	UsernameExists(string) bool
+	EmailExists(string) bool
 }
 
 type VendorService interface {

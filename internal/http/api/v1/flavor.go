@@ -65,8 +65,7 @@ func addFlavor(s core.FlavorService) gin.HandlerFunc {
 			badRequest(c, respError(err, "unable to parse request body"))
 			return
 		}
-		err = s.SaveFlavor(flavor)
-		if err != nil {
+		if err := s.SaveFlavor(flavor); err != nil {
 			serverError(c, respError(err, "an error occurred"))
 			return
 		}
@@ -83,7 +82,7 @@ func getStash(s core.FlavorService) gin.HandlerFunc {
 		}
 		f, err := s.GetStashForUser(u.ID)
 		if err != nil {
-			serverError(c, respError(err, err.Error()))
+			serverError(c, httpError{err: err})
 			return
 		}
 		ok(c, f)
@@ -98,13 +97,13 @@ func addStash(s core.FlavorService) gin.HandlerFunc {
 			return
 		}
 		var fs view.FlavorStash
-		if c.ShouldBind(&fs) != nil {
+		if err := c.ShouldBind(&fs); err != nil {
 			badRequest(c, respError(err, err.Error()))
 			return
 		}
 		fs.OwnerID = u.ID
-		if s.SaveStash(fs) != nil {
-			serverError(c, respError(err, err.Error()))
+		if err := s.SaveStash(fs); err != nil {
+			serverError(c, httpError{err: err})
 			return
 		}
 		created(c, &fs)
