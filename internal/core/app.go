@@ -44,7 +44,7 @@ type TagService interface {
 
 type UserService interface {
 	GetUserByID(id uint64) (view.User, error)
-	GetUserList() ([]model.User, error)
+	GetUserList() ([]view.User, error)
 	SaveUser(u view.User) error
 	UpdateUserPassword(id uint64, pw string) error
 	GetUserByUsername(username string) (view.User, error)

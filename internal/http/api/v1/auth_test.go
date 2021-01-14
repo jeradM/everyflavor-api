@@ -8,6 +8,7 @@ import (
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-contrib/sessions/memstore"
 	"github.com/gin-gonic/gin"
+	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"net/http"
@@ -44,6 +45,8 @@ func TestRegisterSuccess(t *testing.T) {
 	}
 
 	s := new(mocks.UserService)
+	s.On("UsernameExists", mock.Anything).Return(false)
+	s.On("EmailExists", mock.Anything).Return(false)
 	s.On("SaveUser", mock.AnythingOfType("view.User")).Return(nil)
 	g.POST("/register", register(s))
 
@@ -53,21 +56,17 @@ func TestRegisterSuccess(t *testing.T) {
 	g.ServeHTTP(w, r)
 	assert.Equal(t, http.StatusCreated, w.Code)
 
-	// Convert the JSON response to a map
-	var response map[string]string
-	err := json.Unmarshal([]byte(w.Body.String()), &response)
-	assert.Equal(t, err, nil)
+	response, err := parseRespMapString(w)
+	assert.NoError(t, err)
 
-	message, exists := response["message"]
-	assert.Equal(t, exists, true)
+	message, _ := response["message"]
 	assert.Equal(t, message, "user created")
 
-	username, exists := response["username"]
-	assert.Equal(t, exists, true)
+	username, _ := response["username"]
 	assert.Equal(t, username, "testuser")
 }
 
-func TestRegisterPasswordsDontMatch(t *testing.T) {
+func TestRegisterFails_PasswordsDontMatch(t *testing.T) {
 	w, _, g := setupAuthRouter(nil)
 
 	cmd := RegisterCmdObj{
@@ -86,17 +85,75 @@ func TestRegisterPasswordsDontMatch(t *testing.T) {
 	g.ServeHTTP(w, r)
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 
-	var response map[string]string
-	err := json.Unmarshal([]byte(w.Body.String()), &response)
-	assert.Equal(t, err, nil)
+	response, err := parseRespMapString(w)
+	assert.NoError(t, err)
 
-	message, exists := response["message"]
-	assert.Equal(t, exists, true)
-	assert.Equal(t, message, "passwords don't match")
+	message, _ := response["message"]
+	assert.Equal(t, "Passwords don't match", message)
 
-	username, exists := response["username"]
-	assert.Equal(t, exists, true)
-	assert.Equal(t, username, "")
+	username, _ := response["username"]
+	assert.Equal(t, "", username)
+}
+
+func TestRegisterFails_EmailExists(t *testing.T) {
+	w, _, g := setupAuthRouter(nil)
+
+	cmd := RegisterCmdObj{
+		Username:  "testuser",
+		Password:  "testpw",
+		PasswordC: "testpw",
+		Email:     "testuser@test.com",
+	}
+
+	s := new(mocks.UserService)
+	s.On("UsernameExists", mock.Anything).Return(false)
+	s.On("EmailExists", mock.Anything).Return(true)
+	g.POST("/register", register(s))
+
+	body, _ := json.Marshal(cmd)
+	r, _ := http.NewRequest(http.MethodPost, "/register", strings.NewReader(string(body)))
+
+	g.ServeHTTP(w, r)
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+
+	response, err := parseRespMapString(w)
+	assert.NoError(t, err)
+
+	message, _ := response["message"]
+	assert.Equal(t, "Email address already taken", message)
+
+	username, _ := response["username"]
+	assert.Equal(t, "", username)
+}
+
+func TestRegisterFails_UsernameExists(t *testing.T) {
+	w, _, g := setupAuthRouter(nil)
+
+	cmd := RegisterCmdObj{
+		Username:  "testuser",
+		Password:  "testpw",
+		PasswordC: "testpw",
+		Email:     "testuser@test.com",
+	}
+
+	s := new(mocks.UserService)
+	s.On("UsernameExists", mock.Anything).Return(true)
+	g.POST("/register", register(s))
+
+	body, _ := json.Marshal(cmd)
+	r, _ := http.NewRequest(http.MethodPost, "/register", strings.NewReader(string(body)))
+
+	g.ServeHTTP(w, r)
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+
+	response, err := parseRespMapString(w)
+	assert.NoError(t, err)
+
+	message, _ := response["message"]
+	assert.Equal(t, "Username already taken", message)
+
+	username, _ := response["username"]
+	assert.Equal(t, "", username)
 }
 
 func TestAuthenticateSucceeds(t *testing.T) {
@@ -123,7 +180,7 @@ func TestAuthenticateSucceeds(t *testing.T) {
 	g.ServeHTTP(w, r)
 	assert.Equal(t, http.StatusOK, w.Code)
 }
-func TestAuthenticateFails(t *testing.T) {
+func TestAuthenticateFails_WrongPassword(t *testing.T) {
 	gob.Register(&view.User{})
 	w, _, g := setupAuthRouter(nil)
 	hashedPw := "$2a$10$LC/tKbaaD/Et2/lQesHtGubbsS2giWJbSuy77FyxF8Iprgy/0Caxi" // testpw
@@ -138,6 +195,28 @@ func TestAuthenticateFails(t *testing.T) {
 	loginCmd := LoginCmdObj{
 		Username: "testuser",
 		Password: "wrongpassword",
+	}
+	cmdData, _ := json.Marshal(loginCmd)
+	body := strings.NewReader(string(cmdData))
+	r, _ := http.NewRequest(http.MethodPost, "/authenticate", body)
+	r.Header.Add("Content-Type", "application/json")
+
+	g.ServeHTTP(w, r)
+	assert.Equal(t, http.StatusUnauthorized, w.Code)
+}
+
+func TestAuthenticateFails_NoUser(t *testing.T) {
+	gob.Register(&view.User{})
+	w, _, g := setupAuthRouter(nil)
+
+	s := new(mocks.UserService)
+	var u view.User
+	s.On("GetUserByUsername", mock.AnythingOfType("string")).Return(u, errors.New("error"))
+
+	g.POST("authenticate", authenticate(s))
+
+	loginCmd := LoginCmdObj{
+		Username: "non-existent-user",
 	}
 	cmdData, _ := json.Marshal(loginCmd)
 	body := strings.NewReader(string(cmdData))

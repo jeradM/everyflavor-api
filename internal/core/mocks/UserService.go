@@ -97,15 +97,15 @@ func (_m *UserService) GetUserByUsername(username string) (view.User, error) {
 }
 
 // GetUserList provides a mock function with given fields:
-func (_m *UserService) GetUserList() ([]model.User, error) {
+func (_m *UserService) GetUserList() ([]view.User, error) {
 	ret := _m.Called()
 
-	var r0 []model.User
-	if rf, ok := ret.Get(0).(func() []model.User); ok {
+	var r0 []view.User
+	if rf, ok := ret.Get(0).(func() []view.User); ok {
 		r0 = rf()
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]model.User)
+			r0 = ret.Get(0).([]view.User)
 		}
 	}
 

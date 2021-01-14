@@ -20,7 +20,7 @@ type RegisterCmdObj struct {
 	Email     string
 }
 
-func (r *RegisterCmdObj) validate(s core.UserService) error {
+func (r RegisterCmdObj) validate(s core.UserService) error {
 	if r.Username == "" {
 		return errors.New("Username is required")
 	}
@@ -53,7 +53,7 @@ type ChangePasswordCmdObj struct {
 	NewPasswordC    string
 }
 
-func (c *ChangePasswordCmdObj) validate() error {
+func (c ChangePasswordCmdObj) validate() error {
 	if c.CurrentPassword == "" {
 		return errors.New("Current password is required")
 	}
