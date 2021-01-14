@@ -26,6 +26,10 @@ type SQLLoggingQueryExecer struct {
 	connection storage.DB
 }
 
+func NewSQLLoggingerQueryExecer(c storage.DB, e bool) SQLLoggingQueryExecer {
+	return SQLLoggingQueryExecer{connection: c, enabled: e}
+}
+
 func (l *SQLLoggingQueryExecer) Enable(e bool) {
 	l.enabled = e
 }
@@ -118,10 +122,10 @@ type Store struct {
 	vendor storage.VendorStore
 }
 
-func NewMySQLStore(conn storage.DB, logQueries bool) *Store {
+func NewMySQLStore(conn storage.DB, execer storage.DBQueryExecer) *Store {
 	store := &Store{pool: conn}
-	logger := SQLLoggingQueryExecer{enabled: logQueries, connection: conn}
-	store.db = &logger
+	logger := execer
+	store.db = logger
 	store.auth = NewAuthStore(store)
 	store.batch = NewBatchStore(store)
 	store.flavor = NewFlavorStore(store)

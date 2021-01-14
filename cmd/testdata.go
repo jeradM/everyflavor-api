@@ -33,7 +33,7 @@ var testDataCmd = &cobra.Command{
 		core.MustInitLogging(config)
 		rand.Seed(time.Now().UnixNano())
 		m := core.MustSetupMySQLDatabase(config)
-		app := core.NewApp(config, ms.NewMySQLStore(m, config.ShowSQL))
+		app := core.NewApp(config, ms.NewMySQLStore(m, nil))
 		_ = &core.Server{Config: &config, App: app}
 		usersExist := generateUsers(app)
 		generateRecipes(app, tdConfig.NumRecipes)

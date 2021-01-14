@@ -32,7 +32,8 @@ var appCmd = &cobra.Command{
 		config := mustLoadConfig()
 		logger := core.MustInitLogging(config)
 		db := core.MustSetupMySQLDatabase(config)
-		app := core.NewApp(config, mysql.NewMySQLStore(db, config.ShowSQL))
+		dbLogger := mysql.NewSQLLoggingerQueryExecer(db, config.ShowSQL)
+		app := core.NewApp(config, mysql.NewMySQLStore(db, &dbLogger))
 		server := &core.Server{Config: &config, App: app, Logger: logger}
 
 		mustInitRedis(server)
