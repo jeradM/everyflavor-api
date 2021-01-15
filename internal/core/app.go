@@ -8,7 +8,7 @@ import (
 )
 
 type AuthService interface {
-	IsPublic(uint64, model.PublishableEntity) (bool, error)
+	IsPublic(uint64, string) (bool, error)
 	CanViewRecipe(userID, recipeID uint64) (bool, error)
 	CanEditRecipe(userID, recipeID uint64) (bool, error)
 	CanViewBatch(userID, batchID uint64) (bool, error)

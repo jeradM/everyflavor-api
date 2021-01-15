@@ -3,7 +3,8 @@ package mysql
 import (
 	"everyflavor/internal/storage"
 	"everyflavor/internal/storage/model"
-	"fmt"
+
+	"github.com/pkg/errors"
 
 	sq "github.com/Masterminds/squirrel"
 	"github.com/jmoiron/sqlx"
@@ -20,50 +21,106 @@ func NewFlavorStore(store *Store) storage.FlavorStore {
 
 func (r *flavorStore) Get(id uint64) (model.Flavor, error) {
 	var m model.Flavor
-	err := r.store.getEntityByID(nil, &m, id, func(stmt sq.SelectBuilder) sq.SelectBuilder {
-		return stmt.Where(sq.Expr("flavors.deleted_at IS NULL"))
-	})
-	return m, err
+	stmt := sq.Select(flavorSelectFields...).
+		From("flavors").
+		Where(sq.Eq{"id": id})
+	for _, jc := range flavorSelectJoins {
+		stmt = stmt.JoinClause(jc)
+	}
+	query, args, err := stmt.ToSql()
+	if err != nil {
+		return m, errors.Wrap(err, "failed to build select query")
+	}
+	err = r.store.DB().Get(&m, query, args)
+	return m, errors.Wrap(err, "failed to fetch Flavor")
 }
 
 func (r *flavorStore) List() ([]model.Flavor, uint64, error) {
 	var flavors []model.Flavor
-	cnt, err := r.store.listEntities(
-		nil,
-		&flavors,
-		model.BaseListParams{Group: "flavors.id"},
-		func(stmt sq.SelectBuilder) sq.SelectBuilder {
-			return stmt.Where(sq.Expr("flavors.deleted_at IS NULL"))
-		})
-	fmt.Println(cnt)
-	if err != nil {
-		return nil, 0, err
+	var cnt uint64
+	stmt := sq.Select().
+		From("flavors").
+		Where(sq.Expr("flavors.deleted_at IS NULL")).
+		GroupBy("flavors.id")
+	for _, jc := range flavorSelectJoins {
+		stmt = stmt.JoinClause(jc)
 	}
-	return flavors, cnt, err
+
+	query, args, err := stmt.Columns("count(flavors.id)").ToSql()
+	if err != nil {
+		return flavors, 0, errors.Wrap(err, "failed to build select count statement")
+	}
+	err = r.store.DB().Get(&cnt, query, args)
+	if err != nil {
+		return flavors, cnt, errors.Wrap(err, "failed to fetch flavor count")
+	}
+
+	query, args, err = stmt.Columns(flavorSelectFields...).ToSql()
+	if err != nil {
+		return flavors, 0, errors.Wrap(err, "failed to build select statement")
+	}
+	err = r.store.DB().Select(&flavors, query, args)
+
+	return flavors, cnt, errors.Wrap(err, "failed to fetch flavors")
 }
 
 // Insert adds a new flavor to the database
-func (r *flavorStore) Insert(flavor model.Flavor, tx sqlx.Execer) error {
-	return r.store.insertEntity(tx, &flavor, func(id int64) {
-		flavor.ID = uint64(id)
-	})
-}
-
-func (r *flavorStore) Update(flavor model.Flavor, tx sqlx.Execer) error {
-	_, err := r.store.updateEntity(tx, &flavor)
-	return err
-}
-
-func (r *flavorStore) SaveStash(stashes []model.FlavorStash) error {
-	ins := sq.Insert("flavor_stashes").
-		Columns("flavor_id", "owner_id", "on_hand_m", "density_m", "vg", "rating")
-	for _, s := range stashes {
-		ins = ins.Values(s.FlavorID, s.OwnerID, s.OnHandM, s.DensityM, s.Vg, s.Rating)
-	}
-	q, args, err := ins.ToSql()
+func (r *flavorStore) Insert(flavor *model.Flavor, tx sqlx.Execer) error {
+	query, args, err := sq.Insert("flavors").
+		SetMap(flavorInsertMap(flavor)).
+		ToSql()
 	if err != nil {
-		return err
+		return errors.Wrap(err, "failed to build insert query")
 	}
-	_, err = r.store.DB().Exec(q, args)
-	return err
+	result, err := r.store.DB().ExecWithTX(tx, query, args)
+	if err != nil {
+		return errors.Wrap(err, "failed to insert flavor")
+	}
+	id, err := result.LastInsertId()
+	if err != nil {
+		return errors.Wrap(err, "failed to get LastInsertID")
+	}
+	flavor.ID = uint64(id)
+	return nil
+}
+
+func (r *flavorStore) Update(flavor *model.Flavor, tx sqlx.Execer) error {
+	query, args, err := sq.Update("flavors").
+		SetMap(flavorUpdateMap(flavor)).
+		ToSql()
+	if err != nil {
+		return errors.Wrap(err, "failed to build update query")
+	}
+	_, err = r.store.DB().ExecWithTX(tx, query, args)
+	return errors.Wrap(err, "failed to update flavor")
+}
+
+var (
+	flavorSelectFields = []string{
+		"flavors.id",
+		"flavors.created_at",
+		"flavors.updated_at",
+		"flavors.vendor_id",
+		"flavors.name",
+		"flavors.aliases",
+		"count(recipes.id) recipe_count",
+		"IFNULL(CAST(avg(recipe_flavors.percent_m) as UNSIGNED), 0) avg_percent",
+	}
+
+	flavorSelectJoins = []string{
+		"LEFT JOIN recipe_flavors ON recipe_flavors.flavor_id = flavors.id",
+		"LEFT JOIN recipes ON recipes.id = recipe_flavors.recipe_id",
+	}
+)
+
+func flavorInsertMap(f *model.Flavor) map[string]interface{} {
+	return map[string]interface{}{
+		"flavors.vendor_id": f.VendorID,
+		"flavors.name":      f.Name,
+		"flavors.aliases":   f.Aliases,
+	}
+}
+
+func flavorUpdateMap(f *model.Flavor) map[string]interface{} {
+	return flavorInsertMap(f)
 }

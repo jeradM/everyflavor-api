@@ -17,20 +17,34 @@ func NewTagStore(store *Store) storage.TagStore {
 
 func (r *tagStore) Get(id uint64) (*model.Tag, error) {
 	var m model.Tag
-	err := r.store.getEntityByID(nil, &m, id, nil)
+	query, args, err := sq.Select(
+		"tags.id",
+		"tags.created_at",
+		"tags.updated_at",
+		"tags.tag").
+		From("tags").
+		Where(sq.Eq{"tags.id": id}).
+		ToSql()
+	if err != nil {
+		return &m, err
+	}
+	err = r.store.DB().Get(&m, query, args)
 	return &m, err
 }
 
 func (r *tagStore) List() ([]model.Tag, error) {
-	var m model.Tag
-	l := sq.Select(m.SelectFields()...).
-		From(m.TableName()).
-		Where(sq.Expr("deleted_at IS NULL"))
-	q, args, err := l.ToSql()
-	if err != nil {
-		return nil, err
-	}
 	var tags []model.Tag
-	err = r.store.DB().Select(&tags, q, args)
+	query, args, err := sq.Select(
+		"tags.id",
+		"tags.created_at",
+		"tags.updated_at",
+		"tags.tag").
+		From("tags").
+		Where(sq.Expr("deleted_at IS NULL")).
+		ToSql()
+	if err != nil {
+		return tags, err
+	}
+	err = r.store.DB().Select(&tags, query, args)
 	return tags, err
 }

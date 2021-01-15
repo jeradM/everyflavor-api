@@ -39,11 +39,11 @@ func (_m *FlavorStore) Get(_a0 uint64) (model.Flavor, error) {
 }
 
 // Insert provides a mock function with given fields: _a0, _a1
-func (_m *FlavorStore) Insert(_a0 model.Flavor, _a1 sqlx.Execer) error {
+func (_m *FlavorStore) Insert(_a0 *model.Flavor, _a1 sqlx.Execer) error {
 	ret := _m.Called(_a0, _a1)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(model.Flavor, sqlx.Execer) error); ok {
+	if rf, ok := ret.Get(0).(func(*model.Flavor, sqlx.Execer) error); ok {
 		r0 = rf(_a0, _a1)
 	} else {
 		r0 = ret.Error(0)
@@ -83,11 +83,11 @@ func (_m *FlavorStore) List() ([]model.Flavor, uint64, error) {
 }
 
 // Update provides a mock function with given fields: _a0, _a1
-func (_m *FlavorStore) Update(_a0 model.Flavor, _a1 sqlx.Execer) error {
+func (_m *FlavorStore) Update(_a0 *model.Flavor, _a1 sqlx.Execer) error {
 	ret := _m.Called(_a0, _a1)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(model.Flavor, sqlx.Execer) error); ok {
+	if rf, ok := ret.Get(0).(func(*model.Flavor, sqlx.Execer) error); ok {
 		r0 = rf(_a0, _a1)
 	} else {
 		r0 = ret.Error(0)

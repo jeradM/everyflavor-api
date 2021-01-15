@@ -18,15 +18,23 @@ func NewVendorStore(store *Store) storage.VendorStore {
 }
 
 func (r *vendorStore) Get(id uint64) (*model.Vendor, error) {
-	var m model.Vendor
-	err := r.store.getEntityByID(nil, &m, id, func(builder sq.SelectBuilder) sq.SelectBuilder {
-		return builder.Where(sq.Expr("vendors.deleted_at IS NULL"))
-	})
-	return &m, err
+	query, args, err := sq.
+		Select("id", "created_at", "updated_at", "abbreviation", "name", "aliases").
+		From("vendors").
+		Where(sq.Expr("deleted_at IS NULL")).
+		Where(sq.Eq{"id": id}).
+		Limit(1).
+		ToSql()
+	if err != nil {
+		return nil, err
+	}
+	var v model.Vendor
+	err = r.store.DB().Get(&v, query, args)
+	return &v, err
 }
 
 func (r *vendorStore) FindByAbbreviation(abbrev string) (*model.Vendor, error) {
-	q, args, err := sq.
+	query, args, err := sq.
 		Select("id", "created_at", "updated_at", "abbreviation", "name", "aliases").
 		From("vendors").
 		Where(sq.Expr("deleted_at IS NULL")).
@@ -36,11 +44,13 @@ func (r *vendorStore) FindByAbbreviation(abbrev string) (*model.Vendor, error) {
 	if err != nil {
 		return nil, err
 	}
-	return r.fetchOne(q, args)
+	var v model.Vendor
+	err = r.store.DB().Get(&v, query, args)
+	return &v, err
 }
 
 func (r *vendorStore) FindByName(name string) (*model.Vendor, error) {
-	q, args, err := sq.
+	query, args, err := sq.
 		Select("id", "created_at", "updated_at", "abbreviation", "name", "aliases").
 		From("vendors").
 		Where(sq.Expr("deleted_at IS NULL")).
@@ -50,34 +60,64 @@ func (r *vendorStore) FindByName(name string) (*model.Vendor, error) {
 	if err != nil {
 		return nil, err
 	}
-	return r.fetchOne(q, args)
+	var v model.Vendor
+	err = r.store.DB().Get(&v, query, args)
+	return &v, err
 }
 
 func (r *vendorStore) List() ([]model.Vendor, uint64, error) {
+	var count uint64
 	var vendors []model.Vendor
-	cnt, err := r.store.listEntities(
-		nil, &vendors, model.BaseListParams{}, func(stmt sq.SelectBuilder) sq.SelectBuilder {
-			return stmt.Where("deleted_at IS NULL")
-		})
+	stmt := sq.Select().
+		From("vendors").
+		Where(sq.Expr("deleted_at IS NULL"))
+
+	query, args, err := stmt.Columns("count(vendors.id)").ToSql()
 	if err != nil {
-		return vendors, cnt, err
+		return vendors, count, err
 	}
-	return vendors, cnt, err
+	err = r.store.DB().Get(&count, query, args)
+	if err != nil {
+		return vendors, count, err
+	}
+
+	query, args, err = stmt.
+		Columns("id", "created_at", "updated_at", "abbreviation", "name", "aliases").
+		ToSql()
+	if err != nil {
+		return vendors, count, err
+	}
+	err = r.store.DB().Select(&vendors, query, args)
+	return vendors, count, err
 }
 
 func (r *vendorStore) Insert(vendor *model.Vendor, tx sqlx.Execer) error {
-	return r.store.insertEntity(tx, vendor, func(id int64) {
-		vendor.ID = uint64(id)
-	})
-}
-
-func (r *vendorStore) Update(vendor *model.Vendor, tx sqlx.Execer) error {
-	_, err := r.store.updateEntity(tx, vendor)
+	query, args, err := sq.Insert("vendors").
+		SetMap(map[string]interface{}{
+			"abbreviation": vendor.Abbreviation,
+			"name":         vendor.Name,
+			"aliases":      vendor.Aliases,
+		}).
+		ToSql()
+	if err != nil {
+		return err
+	}
+	_, err = r.store.DB().ExecWithTX(tx, query, args)
 	return err
 }
 
-func (r *vendorStore) fetchOne(q string, args ...interface{}) (*model.Vendor, error) {
-	v := model.Vendor{}
-	err := r.store.DB().Get(&v, q, args)
-	return &v, err
+func (r *vendorStore) Update(vendor *model.Vendor, tx sqlx.Execer) error {
+	query, args, err := sq.Update("vendors").
+		SetMap(map[string]interface{}{
+			"abbreviation": vendor.Abbreviation,
+			"name":         vendor.Name,
+			"aliases":      vendor.Aliases,
+		}).
+		Where(sq.Eq{"id": vendor.ID}).
+		ToSql()
+	if err != nil {
+		return err
+	}
+	_, err = r.store.DB().ExecWithTX(tx, query, args)
+	return err
 }

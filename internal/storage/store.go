@@ -30,9 +30,9 @@ type Store interface {
 }
 
 type AuthStore interface {
-	IsPublic(uint64, model.PublishableEntity) (bool, error)
-	IsOwner(uint64, uint64, model.OwnedEntity) (bool, error)
-	IsCollaborator(uint64, uint64, model.SharedEntity) (bool, error)
+	IsPublic(uint64, string) (bool, error)
+	IsOwner(uint64, uint64, string) (bool, error)
+	IsCollaborator(uint64, uint64, string) (bool, error)
 }
 
 type UserStore interface {
@@ -61,8 +61,8 @@ type VendorStore interface {
 type FlavorStore interface {
 	Get(uint64) (model.Flavor, error)
 	List() ([]model.Flavor, uint64, error)
-	Insert(model.Flavor, sqlx.Execer) error
-	Update(model.Flavor, sqlx.Execer) error
+	Insert(*model.Flavor, sqlx.Execer) error
+	Update(*model.Flavor, sqlx.Execer) error
 }
 
 type RecipeStore interface {

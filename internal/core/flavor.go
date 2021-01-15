@@ -6,7 +6,6 @@ import (
 	"fmt"
 
 	"github.com/pkg/errors"
-
 	"github.com/rs/zerolog/log"
 )
 
@@ -52,9 +51,9 @@ func (a *App) SaveFlavor(v view.Flavor) error {
 	}
 	flavor, _ := mapper.FlavorToModel(v)
 	if v.ID > 0 {
-		err = a.Store.Flavor().Update(flavor, tx)
+		err = a.Store.Flavor().Update(&flavor, tx)
 	} else {
-		err = a.Store.Flavor().Insert(flavor, tx)
+		err = a.Store.Flavor().Insert(&flavor, tx)
 	}
 	if err != nil {
 		_ = tx.Rollback()

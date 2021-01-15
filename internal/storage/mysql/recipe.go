@@ -57,7 +57,7 @@ func (r *recipeStore) beforeInsert(recipe *model.Recipe, db storage.DB) error {
 }
 
 func (r *recipeStore) afterInsert(recipe *model.Recipe, db sqlx.Ext) error {
-	q, args, err := sq.Update(recipe.TableName()).
+	q, args, err := sq.Update(recipeTableName).
 		Set("current", 0).
 		Where(sq.Eq{"uuid": recipe.UUID}).
 		Where(sq.Lt{"version": recipe.Version}).
@@ -71,40 +71,64 @@ func (r *recipeStore) afterInsert(recipe *model.Recipe, db sqlx.Ext) error {
 
 func (r *recipeStore) Get(id uint64) (*model.Recipe, error) {
 	var m model.Recipe
-	err := r.store.getEntityByID(nil, &m, id, func(stmt sq.SelectBuilder) sq.SelectBuilder {
-		return stmt.Where(sq.Eq{"recipes.current": 1}).
-			Where(sq.Expr("recipes.deleted_at IS NULL")).
-			Having(sq.Expr("recipes.id > 0"))
-	})
-	return &m, err
+	stmt := sq.Select(recipeSelectFields...).
+		From(recipeTableName).
+		Where(sq.Eq{"recipes.id": id}).
+		Where(sq.Expr("recipes.deleted_at IS NULL")).
+		Having(sq.Expr("recipes.id > 0"))
+	for _, jc := range recipeSelectJoins {
+		stmt = stmt.JoinClause(jc)
+	}
+	query, args, err := stmt.ToSql()
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to build select query")
+	}
+	err = r.store.DB().Get(&m, query, args)
+	return &m, errors.Wrap(err, "failed to fetch recipe")
 }
 
 func (r *recipeStore) ByUUID(uuid string) (*model.Recipe, error) {
 	var m model.Recipe
-	stmt := sq.Select(m.SelectFields()...).
-		From(m.TableName())
-	for _, jc := range m.SelectJoins() {
-		stmt = stmt.JoinClause(jc)
-	}
-	q, args, err := stmt.Where(sq.Eq{"recipes.uuid": uuid}).
+	stmt := sq.Select(recipeSelectFields...).
+		From(recipeTableName).
+		Where(sq.Eq{"recipes.uuid": uuid}).
 		Where(sq.Eq{"recipes.current": 1}).
 		Where(sq.Expr("recipes.deleted_at IS NULL")).
-		ToSql()
-	if err != nil {
-		return nil, err
+		Having(sq.Expr("recipes.id > 0"))
+	for _, jc := range recipeSelectJoins {
+		stmt = stmt.JoinClause(jc)
 	}
-	err = r.store.DB().Get(&m, q, args)
-	return &m, err
+	query, args, err := stmt.ToSql()
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to build select query")
+	}
+	err = r.store.DB().Get(&m, query, args)
+	return &m, errors.Wrap(err, "failed to fetch recipe")
 }
 
 func (r *recipeStore) List(params *model.RecipeParams) ([]model.Recipe, uint64, error) {
+	var count uint64
 	var recipes []model.Recipe
+	stmt := sq.Select().From(recipeTableName)
 	params.Group = "recipes.id"
-	cnt, err := r.store.listEntities(
-		nil, &recipes, params, func(stmt sq.SelectBuilder) sq.SelectBuilder {
-			return r.setFilters(stmt, params)
-		})
-	return recipes, cnt, err
+	stmt = setRecipeFilters(stmt, params)
+
+	query, args, err := stmt.Columns("count(recipes.id)").ToSql()
+	if err != nil {
+		return recipes, count, errors.Wrap(err, "failed to build count query")
+	}
+	err = r.store.DB().Get(&count, query, args)
+	if err != nil {
+		return recipes, count, errors.Wrap(err, "failed to execute count query")
+	}
+
+	stmt = setRecipePagingParams(stmt, params)
+	query, args, err = stmt.Columns(recipeSelectFields...).ToSql()
+	if err != nil {
+		return recipes, count, errors.Wrap(err, "failed to build select query")
+	}
+	err = r.store.DB().Select(&recipes, query, args)
+	return recipes, count, errors.Wrap(err, "failed to execute select query")
 }
 
 func (r *recipeStore) Insert(recipe *model.Recipe, tx sqlx.Ext) error {
@@ -112,35 +136,48 @@ func (r *recipeStore) Insert(recipe *model.Recipe, tx sqlx.Ext) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to execute beforeInsert")
 	}
-	err = r.store.insertEntity(tx, recipe, func(id int64) {
-		recipe.ID = uint64(id)
-	})
+
+	query, args, err := sq.Insert(recipeTableName).
+		SetMap(recipeInsertMap(recipe)).
+		ToSql()
 	if err != nil {
-		return err
+		return errors.Wrap(err, "failed to build insert query")
 	}
+
+	result, err := r.store.DB().ExecWithTX(tx, query, args)
+	if err != nil {
+		return errors.Wrap(err, "failed to execute insert query")
+	}
+	id, err := result.LastInsertId()
+	if err != nil {
+		return errors.Wrap(err, "failed to get LastInsertID")
+	}
+	recipe.ID = uint64(id)
+
 	err = r.afterInsert(recipe, tx)
 	return errors.Wrap(err, "failed to execute afterInsert")
 }
 
 func (r *recipeStore) Update(recipe *model.Recipe, tx sqlx.Ext) error {
-	ins, args, err := sq.Update(recipe.TableName()).
-		SetMap(recipe.UpdateMap()).
-		Where(sq.Eq{"id": recipe.ID}).
+	query, args, err := sq.Update(recipeTableName).
+		SetMap(recipeUpdateMap(recipe)).
 		ToSql()
 	if err != nil {
-		return err
+		return errors.Wrap(err, "failed to build update query")
 	}
-	result, err := r.store.DB().ExecWithTX(tx, ins, args)
-	if err != nil {
-		return err
-	}
-	_, err = result.LastInsertId()
-	return err
+
+	_, err = r.store.DB().ExecWithTX(tx, query, args)
+	return errors.Wrap(err, "failed to execute update query")
 }
 
 func (r *recipeStore) AddComment(c *model.RecipeComment) error {
-	q, args, err := sq.Insert(c.TableName()).
-		SetMap(c.InsertMap()).
+	q, args, err := sq.Insert("recipe_comments").
+		SetMap(map[string]interface{}{
+			"content":     c.Content,
+			"recipe_id":   c.RecipeID,
+			"owner_id":    c.OwnerID,
+			"reply_to_id": c.ReplyToID,
+		}).
 		ToSql()
 	if err != nil {
 		return err
@@ -158,13 +195,17 @@ func (r *recipeStore) AddComment(c *model.RecipeComment) error {
 }
 
 func (r *recipeStore) InsertRating(m *model.RecipeRating, tx sqlx.Execer) error {
-	q, args, err := sq.Insert(m.TableName()).
-		SetMap(m.InsertMap()).
+	q, args, err := sq.Insert("recipe_ratings").
+		SetMap(map[string]interface{}{
+			"rating":    m.Rating,
+			"recipe_id": m.RecipeID,
+			"owner_id":  m.OwnerID,
+		}).
 		ToSql()
 	if err != nil {
 		return err
 	}
-	res, err := r.store.DB().Exec(q, args)
+	res, err := r.store.DB().ExecWithTX(tx, q, args)
 	if err != nil {
 		return err
 	}
@@ -177,9 +218,8 @@ func (r *recipeStore) InsertRating(m *model.RecipeRating, tx sqlx.Execer) error 
 }
 
 func (r *recipeStore) ListFlavors(p model.RecipeFlavorParams) ([]model.RecipeFlavor, error) {
-	var m model.RecipeFlavor
-	stmt := sq.Select(m.SelectFields()...).
-		From(m.TableName())
+	stmt := sq.Select(recipeFlavorsSelectFields...).
+		From(recipeFlavorsTableName)
 	if p.RecipeID != 0 {
 		stmt = stmt.Where(sq.Eq{"recipe_flavors.recipe_id": p.RecipeID})
 	} else if len(p.RecipeIDs) > 0 {
@@ -243,10 +283,9 @@ func (r *recipeStore) ReplaceFlavors(recipeID uint64, flavors []model.RecipeFlav
 }
 
 func (r *recipeStore) ListCollaborators(p model.RecipeCollaboratorParams) ([]model.RecipeCollaborator, error) {
-	var m model.RecipeCollaborator
-	stmt := sq.Select(m.SelectFields()...).
-		From(m.TableName())
-	for _, jc := range m.SelectJoins() {
+	stmt := sq.Select(recipeCollaboratorsSelectFields...).
+		From(recipeCollaboratorsTableName)
+	for _, jc := range recipeCollaboratorsSelectJoins {
 		stmt = stmt.JoinClause(jc)
 	}
 	if p.RecipeID != 0 {
@@ -306,10 +345,9 @@ func (r *recipeStore) ReplaceCollaborators(recipeID uint64, collabs []model.Reci
 }
 
 func (r *recipeStore) ListTags(p model.RecipeTagParams) ([]model.RecipeTag, error) {
-	var m model.RecipeTag
-	stmt := sq.Select(m.SelectFields()...).
-		From(m.TableName())
-	for _, jc := range m.SelectJoins() {
+	stmt := sq.Select(recipeTagsSelectFields...).
+		From(recipeTagsTableName)
+	for _, jc := range recipeTagsSelectJoins {
 		stmt = stmt.JoinClause(jc)
 	}
 	if p.RecipeID != 0 {
@@ -368,7 +406,7 @@ func (r *recipeStore) ReplaceTags(recipeID uint64, tags []model.RecipeTag, tx sq
 	return errors.Wrap(err, "failed to insert into recipe_tags")
 }
 
-func (r *recipeStore) setFilters(q sq.SelectBuilder, p *model.RecipeParams) sq.SelectBuilder {
+func setRecipeFilters(q sq.SelectBuilder, p *model.RecipeParams) sq.SelectBuilder {
 	if p.Title != "" {
 		q = q.Where("lower(recipes.title) like ?", "%"+strings.ToLower(p.Title)+"%")
 	}
@@ -406,37 +444,143 @@ func (r *recipeStore) setFilters(q sq.SelectBuilder, p *model.RecipeParams) sq.S
 	return q
 }
 
-func (r *recipeStore) setPagingParams(q sq.SelectBuilder, p *model.RecipeParams) sq.SelectBuilder {
-	var offset uint64
-	var limit uint64
-	var order string
-	if p.Limit <= 0 {
-		limit = 25
-	} else if p.Limit > 100 {
-		limit = 100
-	} else {
-		limit = p.Limit
+func setRecipePagingParams(q sq.SelectBuilder, p *model.RecipeParams) sq.SelectBuilder {
+	if p.GetGroup() != "" {
+		q = q.GroupBy(p.GetGroup())
 	}
-	if p.Offset < 0 {
-		offset = 0
-	} else {
-		offset = p.Offset
+	if p.GetLimit() > 0 {
+		q = q.Limit(p.GetLimit())
 	}
-	q = q.Limit(limit).Offset(offset)
-	if strings.ToLower(p.Order) != "desc" {
-		order = "asc"
-	} else {
-		order = "desc"
+	if p.GetOffset() > 0 {
+		q = q.Offset(p.GetOffset())
 	}
-	if p.Sort != "" {
-		sort := p.Sort
-		if sort == "rating" {
-			sort = "avg_rating"
-		} else if !strings.Contains(sort, ".") {
-			sort = "recipes." + sort
-		}
-		q = q.OrderBy(sort + " " + order)
+	if p.GetSort() != "" {
+		q = q.OrderBy(p.GetSort())
+	}
+	return q
+}
+
+var (
+	recipeTableName    = "recipes"
+	recipeSelectFields = []string{
+		"recipes.id",
+		"recipes.created_at",
+		"recipes.updated_at",
+		"recipes.owner_id",
+		"recipes.current",
+		"recipes.description",
+		"recipes.public",
+		"recipes.remix_of_id",
+		"recipes.snv",
+		"recipes.steep_days",
+		"recipes.temp_f",
+		"recipes.title",
+		"recipes.uuid",
+		"recipes.version",
+		"recipes.vg_percent_m",
+		"recipes.wip",
+		"CAST(IFNULL(avg(recipe_ratings.rating) * 1000, 0) as UNSIGNED) as avg_rating",
+		"users.username owner_username",
+		"remix.title remix_of_title",
+	}
+	recipeSelectJoins = []string{
+		"LEFT JOIN users ON users.id = recipes.owner_id",
+		"LEFT JOIN recipe_ratings ON recipe_ratings.recipe_id = recipes.id",
+		"LEFT JOIN recipes remix ON remix.id = recipes.remix_of_id",
 	}
 
-	return q
+	recipeFlavorsTableName    = "recipe_flavors"
+	recipeFlavorsSelectFields = []string{
+		"recipe_flavors.id",
+		"recipe_flavors.percent_m",
+		"recipe_flavors.flavor_id",
+		"recipe_flavors.recipe_id",
+	}
+
+	recipeCollaboratorsTableName    = "recipe_collaborators"
+	recipeCollaboratorsSelectFields = []string{
+		"recipe_collaborators.user_id",
+		"users.username",
+		"recipe_collaborators.recipe_id",
+	}
+	recipeCollaboratorsSelectJoins = []string{
+		"JOIN users ON users.id = recipe_collaborators.user_id",
+	}
+
+	recipeTagsTableName    = "recipe_tagss"
+	recipeTagsSelectFields = []string{
+		"recipe_tags.recipe_id",
+		"recipe_tags.tag_id",
+		"tags.tag",
+	}
+	recipeTagsSelectJoins = []string{
+		"JOIN tags ON tags.id = recipe_tags.tag_id",
+	}
+)
+
+func recipeInsertMap(r *model.Recipe) map[string]interface{} {
+	return map[string]interface{}{
+		"owner_id":     r.OwnerID,
+		"current":      1,
+		"description":  r.Description,
+		"public":       r.Public,
+		"remix_of_id":  r.RemixOfID,
+		"snv":          r.Snv,
+		"steep_days":   r.SteepDays,
+		"temp_f":       r.TempF,
+		"title":        r.Title,
+		"uuid":         r.UUID,
+		"version":      r.Version,
+		"vg_percent_m": r.VgPercentM,
+		"wip":          r.Wip,
+	}
+}
+
+func recipeUpdateMap(r *model.Recipe) map[string]interface{} {
+	return map[string]interface{}{
+		"owner_id":     r.OwnerID,
+		"description":  r.Description,
+		"public":       r.Public,
+		"remix_of_id":  r.RemixOfID,
+		"snv":          r.Snv,
+		"steep_days":   r.SteepDays,
+		"temp_f":       r.TempF,
+		"title":        r.Title,
+		"vg_percent_m": r.VgPercentM,
+		"wip":          r.Wip,
+	}
+}
+
+func recipeFlavorsInsertMap(r *model.RecipeFlavor) map[string]interface{} {
+	return map[string]interface{}{
+		"percent_m": r.PercentM,
+		"flavor_id": r.FlavorID,
+		"recipe_id": r.RecipeID,
+	}
+}
+
+func recipeFlavorUpdateMap(r *model.RecipeFlavor) map[string]interface{} {
+	return recipeFlavorsInsertMap(r)
+}
+
+func recipeCollaboratorsInsertMap(r *model.RecipeCollaborator) map[string]interface{} {
+	return map[string]interface{}{
+		"recipe_id": r.RecipeID,
+		"user_id":   r.UserID,
+	}
+}
+
+func recipeCollaboratorsUpdateMap(r *model.RecipeCollaborator) map[string]interface{} {
+	return recipeCollaboratorsInsertMap(r)
+}
+
+func recipeTagInsertMap(r *model.RecipeTag) map[string]interface{} {
+	return map[string]interface{}{
+		"recipe_id": r.RecipeID,
+		"tag_id":    r.TagID,
+	}
+}
+
+func recipeTagUpdateMap(r *model.RecipeTag) map[string]interface{} {
+	return recipeTagInsertMap(r)
 }

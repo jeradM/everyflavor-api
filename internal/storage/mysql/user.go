@@ -35,19 +35,28 @@ func (r *userStore) beforeInsertUser(u *model.User) error {
 
 func (r *userStore) Get(id uint64) (*model.User, error) {
 	var u model.User
-	err := r.store.getEntityByID(nil, &u, id, func(stmt sq.SelectBuilder) sq.SelectBuilder {
-		return stmt.Where(sq.Expr("users.deleted_at IS NULL"))
-	})
+	query, args, err := sq.Select(userSelectFields...).
+		From("users").
+		Where(sq.Eq{"users.id": id}).
+		ToSql()
+	if err != nil {
+		return &u, err
+	}
+	err = r.store.DB().Get(&u, query, args)
 	return &u, err
 }
 
 func (r *userStore) List() ([]model.User, error) {
-	p := model.BaseListParams{}
-	var user []model.User
-	_, err := r.store.listEntities(nil, &user, p, func(stmt sq.SelectBuilder) sq.SelectBuilder {
-		return stmt.Where(sq.Expr("deleted_at IS NULL"))
-	})
-	return user, err
+	var users []model.User
+	query, args, err := sq.Select(userSelectFields...).
+		From("users").
+		Where(sq.Expr("users.deleted_at IS NULL")).
+		ToSql()
+	if err != nil {
+		return users, err
+	}
+	err = r.store.DB().Select(&users, query, args)
+	return users, err
 }
 
 func (r *userStore) Insert(u *model.User, tx sqlx.Execer) error {
@@ -55,18 +64,35 @@ func (r *userStore) Insert(u *model.User, tx sqlx.Execer) error {
 	if err != nil {
 		return err
 	}
-	return r.store.insertEntity(tx, u, func(id int64) {
-		u.ID = uint64(id)
-	})
+	query, args, err := sq.Insert("users").
+		SetMap(userInsertMap(u)).
+		ToSql()
+	if err != nil {
+		return err
+	}
+	_, err = r.store.DB().ExecWithTX(tx, query, args)
+	return err
 }
 
 func (r *userStore) Update(u *model.User, tx sqlx.Execer) error {
-	_, err := r.store.updateEntity(tx, u)
+	query, args, err := sq.Update("users").
+		SetMap(userUpdateMap(u)).
+		ToSql()
+	if err != nil {
+		return err
+	}
+	_, err = r.store.DB().ExecWithTX(tx, query, args)
 	return err
 }
 
 func (r *userStore) Delete(u *model.User, tx sqlx.Execer) error {
-	_, err := r.store.deleteEntity(tx, u)
+	query, args, err := sq.Delete("users").
+		Where(sq.Eq{"users.id": u.ID}).
+		ToSql()
+	if err != nil {
+		return err
+	}
+	_, err = r.store.DB().ExecWithTX(tx, query, args)
 	return err
 }
 
@@ -83,9 +109,9 @@ func (r *userStore) UpdatePassword(id uint64, pw string) error {
 }
 
 func (r *userStore) FindByUsername(username string) (*model.User, error) {
-	u := model.User{}
-	q, args, err := sq.Select(u.SelectFields()...).
-		From(u.TableName()).
+	var u model.User
+	q, args, err := sq.Select(userSelectFields...).
+		From("users").
 		Where(sq.Eq{"username": username}).
 		Where(sq.Expr("deleted_at IS NULL")).
 		ToSql()
@@ -97,12 +123,11 @@ func (r *userStore) FindByUsername(username string) (*model.User, error) {
 }
 
 func (r *userStore) FindAllByUsernameLike(username string) ([]model.User, error) {
-	var userModel model.User
 	un := "%" + strings.ToLower(username) + "%"
 	q, args, err := sq.Select("users.id", "users.username").
-		From(userModel.TableName()).
-		Where(sq.Expr("deleted_at IS NULL")).
-		Where(sq.Expr("lower(username) like ?", un)).
+		From("users").
+		Where(sq.Expr("users.deleted_at IS NULL")).
+		Where(sq.Expr("lower(users.username) like ?", un)).
 		ToSql()
 	if err != nil {
 		return nil, err
@@ -141,10 +166,9 @@ func (r *userStore) GetStats(id uint64) (*model.UserStats, error) {
 }
 
 func (r *userStore) ListRoles(userIDs []uint64) ([]model.UserRole, error) {
-	var m model.UserRole
-	stmt := sq.Select(m.SelectFields()...).
-		From(m.TableName())
-	for _, jc := range m.SelectJoins() {
+	stmt := sq.Select(userRoleSelectFields...).
+		From("user_roles")
+	for _, jc := range userRoleSelectJoins {
 		stmt = stmt.JoinClause(jc)
 	}
 	q, args, err := stmt.Where(sq.Eq{"user_roles.user_id": userIDs}).
@@ -169,4 +193,58 @@ func (r *userStore) EmailExists(email string) bool {
 	var id uint64
 	_ = r.store.DB().Get(&id, query, []interface{}{email})
 	return id != 0
+}
+
+var (
+	userSelectFields = []string{
+		"users.id",
+		"users.created_at",
+		"users.updated_at",
+		"users.username",
+		"users.email",
+		"users.password",
+	}
+	roleSelectFields = []string{
+		"roles.id",
+		"roles.authority",
+	}
+	userRoleSelectFields = []string{
+		"user_roles.user_id",
+		"user_roles.role_id",
+		"roles.authority",
+	}
+	userRoleSelectJoins = []string{
+		"JOIN roles ON roles.id = user_roles.role_id",
+	}
+)
+
+func userInsertMap(u *model.User) map[string]interface{} {
+	return map[string]interface{}{
+		"username": u.Username,
+		"email":    u.Email,
+		"password": u.Password,
+	}
+}
+
+func userUpdateMap(u *model.User) map[string]interface{} {
+	return userInsertMap(u)
+}
+
+func roleInsertMap(r *model.Role) map[string]interface{} {
+	return map[string]interface{}{"authority": r.Authority}
+}
+
+func roleUpdateMap(r *model.Role) map[string]interface{} {
+	return roleInsertMap(r)
+}
+
+func userRoleInsertMap(u *model.UserRole) map[string]interface{} {
+	return map[string]interface{}{
+		"user_id": u.UserID,
+		"role_id": u.RoleID,
+	}
+}
+
+func userRoleUpdateMap(u *model.UserRole) map[string]interface{} {
+	return userRoleInsertMap(u)
 }

@@ -2,7 +2,7 @@ package mysql
 
 import (
 	"everyflavor/internal/storage"
-	"everyflavor/internal/storage/model"
+	"github.com/pkg/errors"
 
 	sq "github.com/Masterminds/squirrel"
 )
@@ -15,13 +15,13 @@ func NewAuthStore(store *Store) storage.AuthStore {
 	return &authStore{store: store}
 }
 
-func (r *authStore) IsPublic(resourceID uint64, t model.PublishableEntity) (bool, error) {
-	q, args, err := sq.Select(t.PublicField()).
-		From(t.TableName()).
-		Where(sq.Eq{"id": resourceID}).
+func (r *authStore) IsPublic(id uint64, table string) (bool, error) {
+	q, args, err := sq.Select("public").
+		From(table).
+		Where(sq.Eq{"id": id}).
 		ToSql()
 	if err != nil {
-		return false, err
+		return false, errors.Wrap(err, "failed to build select query")
 	}
 	var p uint64
 	err = r.store.DB().Get(&p, q, args)
@@ -31,9 +31,9 @@ func (r *authStore) IsPublic(resourceID uint64, t model.PublishableEntity) (bool
 	return p == 1, nil
 }
 
-func (r *authStore) IsOwner(userID, resourceID uint64, t model.OwnedEntity) (bool, error) {
-	q, args, err := sq.Select(t.OwnerField()).
-		From(t.TableName()).
+func (r *authStore) IsOwner(userID, resourceID uint64, table string) (bool, error) {
+	q, args, err := sq.Select("owner_id").
+		From(table).
 		Where(sq.Eq{"id": resourceID}).
 		ToSql()
 	if err != nil {
@@ -47,10 +47,16 @@ func (r *authStore) IsOwner(userID, resourceID uint64, t model.OwnedEntity) (boo
 	return resId == userID, nil
 }
 
-func (r *authStore) IsCollaborator(userID, resourceID uint64, entity model.SharedEntity) (bool, error) {
-	query, args := entity.CollaboratorIDsQuery(resourceID)
-	ids := []uint64{}
-	err := r.store.DB().Select(&ids, query, args)
+func (r *authStore) IsCollaborator(userID, resourceID uint64, model string) (bool, error) {
+	query, args, err := sq.Select("user_id").
+		From(model + "_collaborators").
+		Where(sq.Eq{model + "_id": resourceID}).
+		ToSql()
+	if err != nil {
+		return false, errors.Wrap(err, "failed to build select query")
+	}
+	var ids []uint64
+	err = r.store.DB().Select(&ids, query, args)
 	if err != nil {
 		return false, err
 	}
