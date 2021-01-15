@@ -4,8 +4,6 @@ import (
 	"everyflavor/internal/http/api/v1/view"
 	"everyflavor/internal/mapper"
 	"everyflavor/internal/storage/model"
-
-	"github.com/rs/zerolog/log"
 )
 
 func (a *App) GetBatch(id uint64) (*view.Batch, error) {
@@ -20,9 +18,6 @@ func (a *App) GetBatch(id uint64) (*view.Batch, error) {
 
 func (a *App) GetBatchesForUser(ownerId uint64) ([]model.Batch, error) {
 	b, err := a.Store.Batch().List(ownerId)
-	if err != nil {
-		log.Error().Err(err).Msg("An error occurred: BatchesService.ForUser()")
-	}
 	return b, err
 }
 
@@ -40,7 +35,6 @@ func (a *App) SaveBatch(b view.Batch) (view.Batch, error) {
 	}
 	if err != nil {
 		_ = tx.Rollback()
-		log.Error().Err(err).Msg("An error occurred saving Recipe")
 		return b, err
 	}
 	for _, f := range flavors {

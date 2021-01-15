@@ -110,6 +110,9 @@ func (r *recipeStore) List(params *model.RecipeParams) ([]model.Recipe, uint64, 
 	var count uint64
 	var recipes []model.Recipe
 	stmt := sq.Select().From(recipeTableName)
+	for _, jc := range recipeSelectJoins {
+		stmt = stmt.JoinClause(jc)
+	}
 	params.Group = "recipes.id"
 	stmt = setRecipeFilters(stmt, params)
 
@@ -507,7 +510,7 @@ var (
 		"JOIN users ON users.id = recipe_collaborators.user_id",
 	}
 
-	recipeTagsTableName    = "recipe_tagss"
+	recipeTagsTableName    = "recipe_tags"
 	recipeTagsSelectFields = []string{
 		"recipe_tags.recipe_id",
 		"recipe_tags.tag_id",
