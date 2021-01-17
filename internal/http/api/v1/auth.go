@@ -4,8 +4,9 @@ import (
 	"everyflavor/internal/core"
 	"everyflavor/internal/http/api/v1/view"
 	"everyflavor/internal/storage/model"
-	"github.com/pkg/errors"
 	"net/http"
+
+	"github.com/pkg/errors"
 
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
@@ -81,11 +82,11 @@ func register(s core.UserService) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var userObj RegisterCmdObj
 		if err := c.BindJSON(&userObj); err != nil {
-			c.AbortWithStatus(http.StatusBadRequest)
+			badRequest(c, respError(err, ""))
 			return
 		}
 		if err := userObj.validate(s); err != nil {
-			c.JSON(http.StatusBadRequest, RegisterResponse{Message: err.Error()})
+			badRequest(c, respError(err, err.Error()))
 			return
 		}
 		u := view.User{
@@ -95,10 +96,10 @@ func register(s core.UserService) gin.HandlerFunc {
 		}
 		err := s.SaveUser(u)
 		if err != nil {
-			c.AbortWithStatusJSON(http.StatusInternalServerError, RegisterResponse{Message: err.Error()})
+			serverError(c, err)
 			return
 		}
-		c.JSON(http.StatusCreated, &RegisterResponse{
+		created(c, &RegisterResponse{
 			Username: &u.Username,
 			Message:  "user created",
 		})
@@ -110,17 +111,17 @@ func authenticate(s core.UserService) gin.HandlerFunc {
 		var login LoginCmdObj
 		err := c.ShouldBind(&login)
 		if err != nil {
-			c.JSON(http.StatusUnauthorized, "Login failed")
+			unauthorized(c, respError(err, "Login failed"))
 			return
 		}
 		u, err := s.GetUserByUsername(login.Username)
 		if err != nil {
-			c.JSON(http.StatusUnauthorized, "Login failed")
+			unauthorized(c, respError(err, "Login failed"))
 			return
 		}
 		err = bcrypt.CompareHashAndPassword([]byte(u.Password), []byte(login.Password))
 		if err != nil {
-			c.JSON(http.StatusUnauthorized, "Login failed")
+			unauthorized(c, respError(err, "Login failed"))
 			return
 		}
 		session := sessions.Default(c)
@@ -134,11 +135,10 @@ func authenticate(s core.UserService) gin.HandlerFunc {
 		}
 		user, err := s.GetUserByID(u.ID)
 		if err != nil {
-			log.Error().Err(err).Msg("")
-			c.JSON(500, err.Error())
+			serverError(c, err)
 			return
 		}
-		c.JSON(http.StatusOK, user)
+		ok(c, user)
 	}
 }
 

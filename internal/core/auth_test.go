@@ -80,8 +80,22 @@ func TestApp_CanViewRecipe_IsPublic(t *testing.T) {
 	assert.True(t, canView)
 }
 
+func TestApp_CanEditRecipe_FalsePublic(t *testing.T) {
+	authStore := new(mocks.AuthStore)
+	authStore.On("IsPublic", mock.Anything, mock.Anything).Return(true, nil)
+	store := new(mocks.Store)
+	store.On("Auth").Return(authStore)
+
+	a := NewApp(AppConfig{}, store)
+
+	canEdit, err := a.CanEditRecipe(0, 0)
+	assert.NoError(t, err)
+	assert.False(t, canEdit)
+}
+
 func TestApp_CanEditRecipe_False(t *testing.T) {
 	authStore := new(mocks.AuthStore)
+	authStore.On("IsPublic", mock.Anything, mock.Anything).Return(false, nil)
 	authStore.On("IsOwner", mock.Anything, mock.Anything, mock.Anything).Return(false, nil)
 	authStore.On("IsCollaborator", mock.Anything, mock.Anything, mock.Anything).Return(false, nil)
 	store := new(mocks.Store)
@@ -96,6 +110,7 @@ func TestApp_CanEditRecipe_False(t *testing.T) {
 
 func TestApp_CanEditRecipe_Error(t *testing.T) {
 	authStore := new(mocks.AuthStore)
+	authStore.On("IsPublic", mock.Anything, mock.Anything).Return(false, nil)
 	authStore.On("IsOwner", mock.Anything, mock.Anything, mock.Anything).Return(true, errors.New(""))
 	store := new(mocks.Store)
 	store.On("Auth").Return(authStore)
@@ -109,6 +124,7 @@ func TestApp_CanEditRecipe_Error(t *testing.T) {
 
 func TestApp_CanEditRecipe_Owner(t *testing.T) {
 	authStore := new(mocks.AuthStore)
+	authStore.On("IsPublic", mock.Anything, mock.Anything).Return(false, nil)
 	authStore.On("IsOwner", mock.Anything, mock.Anything, mock.Anything).Return(true, nil)
 	store := new(mocks.Store)
 	store.On("Auth").Return(authStore)
@@ -122,6 +138,7 @@ func TestApp_CanEditRecipe_Owner(t *testing.T) {
 
 func TestApp_CanEditRecipe_Collaborator(t *testing.T) {
 	authStore := new(mocks.AuthStore)
+	authStore.On("IsPublic", mock.Anything, mock.Anything).Return(false, nil)
 	authStore.On("IsOwner", mock.Anything, mock.Anything, mock.Anything).Return(false, nil)
 	authStore.On("IsCollaborator", mock.Anything, mock.Anything, mock.Anything).Return(true, nil)
 	store := new(mocks.Store)

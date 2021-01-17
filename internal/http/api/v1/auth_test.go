@@ -5,16 +5,17 @@ import (
 	"encoding/json"
 	"everyflavor/internal/core/mocks"
 	"everyflavor/internal/http/api/v1/view"
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"testing"
+
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-contrib/sessions/memstore"
 	"github.com/gin-gonic/gin"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"net/http"
-	"net/http/httptest"
-	"strings"
-	"testing"
 )
 
 func setupAuthRouter(u *view.User) (*httptest.ResponseRecorder, *gin.Context, *gin.Engine) {
@@ -56,13 +57,15 @@ func TestRegisterSuccess(t *testing.T) {
 	g.ServeHTTP(w, r)
 	assert.Equal(t, http.StatusCreated, w.Code)
 
-	response, err := parseRespMapString(w)
+	response, err := parseRespMapInterface(w)
 	assert.NoError(t, err)
 
 	message, _ := response["message"]
-	assert.Equal(t, message, "user created")
+	assert.Equal(t, message, "created")
 
-	username, _ := response["username"]
+	data, ok := response["data"].(map[string]interface{})
+	assert.True(t, ok, "response data is not a map")
+	username, _ := data["username"]
 	assert.Equal(t, username, "testuser")
 }
 
@@ -85,14 +88,13 @@ func TestRegisterFails_PasswordsDontMatch(t *testing.T) {
 	g.ServeHTTP(w, r)
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 
-	response, err := parseRespMapString(w)
+	response, err := parseRespMapInterface(w)
 	assert.NoError(t, err)
 
 	message, _ := response["message"]
 	assert.Equal(t, "Passwords don't match", message)
 
-	username, _ := response["username"]
-	assert.Equal(t, "", username)
+	assert.Nil(t, response["data"])
 }
 
 func TestRegisterFails_EmailExists(t *testing.T) {
@@ -116,14 +118,13 @@ func TestRegisterFails_EmailExists(t *testing.T) {
 	g.ServeHTTP(w, r)
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 
-	response, err := parseRespMapString(w)
+	response, err := parseRespMapInterface(w)
 	assert.NoError(t, err)
 
 	message, _ := response["message"]
 	assert.Equal(t, "Email address already taken", message)
 
-	username, _ := response["username"]
-	assert.Equal(t, "", username)
+	assert.Nil(t, response["data"])
 }
 
 func TestRegisterFails_UsernameExists(t *testing.T) {
@@ -146,14 +147,13 @@ func TestRegisterFails_UsernameExists(t *testing.T) {
 	g.ServeHTTP(w, r)
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 
-	response, err := parseRespMapString(w)
+	response, err := parseRespMapInterface(w)
 	assert.NoError(t, err)
 
 	message, _ := response["message"]
 	assert.Equal(t, "Username already taken", message)
 
-	username, _ := response["username"]
-	assert.Equal(t, "", username)
+	assert.Nil(t, response["data"])
 }
 
 func TestAuthenticateSucceeds(t *testing.T) {

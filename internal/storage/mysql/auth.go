@@ -2,9 +2,9 @@ package mysql
 
 import (
 	"everyflavor/internal/storage"
-	"github.com/pkg/errors"
 
 	sq "github.com/Masterminds/squirrel"
+	"github.com/pkg/errors"
 )
 
 type authStore struct {

@@ -11,6 +11,7 @@ type Recipe struct {
 	Current       bool           `json:"current"`
 	Description   string         `json:"description"`
 	Public        bool           `json:"public"`
+	PublishedAt   *time.Time     `json:"published_at"`
 	RemixOfID     *uint64        `json:"remixOfId"`
 	RemixOfTitle  *string        `json:"remixOfTitle"`
 	Snv           bool           `json:"snv"`

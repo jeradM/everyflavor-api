@@ -5,14 +5,15 @@ import (
 	"everyflavor/internal/core"
 	"everyflavor/internal/core/mocks"
 	"everyflavor/internal/http/api/v1/view"
+	"net/http"
+	"net/http/httptest"
+	"testing"
+
 	"github.com/gin-gonic/gin"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	"net/http"
-	"net/http/httptest"
-	"testing"
 )
 
 var testUser = view.User{

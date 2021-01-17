@@ -554,6 +554,20 @@ func (_m *Application) ListTags() ([]view.Tag, error) {
 	return r0, r1
 }
 
+// PublishRecipe provides a mock function with given fields: _a0
+func (_m *Application) PublishRecipe(_a0 uint64) error {
+	ret := _m.Called(_a0)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(uint64) error); ok {
+		r0 = rf(_a0)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
 // SaveBatch provides a mock function with given fields: b
 func (_m *Application) SaveBatch(b view.Batch) (view.Batch, error) {
 	ret := _m.Called(b)

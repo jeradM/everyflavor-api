@@ -36,6 +36,7 @@ type RecipeService interface {
 	SaveRecipe(view.Recipe) (view.Recipe, error)
 	UpdateRecipe(view.Recipe) (view.Recipe, error)
 	AddRecipeRating(uint64, view.RecipeRating) error
+	PublishRecipe(uint64) error
 }
 
 type TagService interface {

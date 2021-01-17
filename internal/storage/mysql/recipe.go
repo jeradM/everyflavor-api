@@ -164,6 +164,7 @@ func (r *recipeStore) Insert(recipe *model.Recipe, tx sqlx.Ext) error {
 func (r *recipeStore) Update(recipe *model.Recipe, tx sqlx.Ext) error {
 	query, args, err := sq.Update(recipeTableName).
 		SetMap(recipeUpdateMap(recipe)).
+		Where(sq.Eq{"recipes.id": recipe.ID}).
 		ToSql()
 	if err != nil {
 		return errors.Wrap(err, "failed to build update query")
@@ -171,6 +172,19 @@ func (r *recipeStore) Update(recipe *model.Recipe, tx sqlx.Ext) error {
 
 	_, err = r.store.DB().ExecWithTX(tx, query, args)
 	return errors.Wrap(err, "failed to execute update query")
+}
+
+func (r *recipeStore) Publish(recipeID uint64, tx sqlx.Execer) error {
+	query, args, err := sq.Update(recipeTableName).
+		Set("public", 1).
+		Set("published_at", sq.Expr("NOW()")).
+		Where(sq.Eq{"id": recipeID}).
+		ToSql()
+	if err != nil {
+		return errors.Wrap(err, "failed to build update query")
+	}
+	_, err = r.store.DB().ExecWithTX(tx, query, args)
+	return errors.Wrap(err, "failed to update recipe")
 }
 
 func (r *recipeStore) AddComment(c *model.RecipeComment) error {
@@ -473,6 +487,7 @@ var (
 		"recipes.current",
 		"recipes.description",
 		"recipes.public",
+		"recipes.published_at",
 		"recipes.remix_of_id",
 		"recipes.snv",
 		"recipes.steep_days",

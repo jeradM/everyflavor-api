@@ -154,6 +154,10 @@ func (a *App) AddRecipeRating(recipeID uint64, v view.RecipeRating) error {
 	return a.Store.Recipe().InsertRating(&rr, nil)
 }
 
+func (a *App) PublishRecipe(recipeID uint64) error {
+	return a.Store.Recipe().Publish(recipeID, nil)
+}
+
 func (a *App) loadRecipeRelationships(r *model.Recipe) (*view.Recipe, error) {
 	flavors, err := a.Store.Recipe().
 		ListFlavors(model.RecipeFlavorParams{RecipeID: r.ID})

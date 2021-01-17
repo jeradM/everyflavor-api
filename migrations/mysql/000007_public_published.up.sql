@@ -1,0 +1,1 @@
+ALTER TABLE recipes ADD published_at DATETIME(3) DEFAULT NULL AFTER public;

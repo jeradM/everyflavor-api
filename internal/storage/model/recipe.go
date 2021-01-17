@@ -72,6 +72,7 @@ type Recipe struct {
 	Current       bool       `db:"current"`
 	Description   string     `db:"description"`
 	Public        bool       `db:"public"`
+	PublishedAt   *time.Time `db:"published_at"`
 	RemixOfID     *uint64    `db:"remix_of_id"`
 	Snv           bool       `db:"snv"`
 	SteepDays     uint64     `db:"steep_days"`

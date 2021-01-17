@@ -18,6 +18,7 @@ func setupRecipeHandlers(router gin.IRouter, s core.Application) {
 	router.GET("/recipe/:id", CanViewRecipe(s), getRecipe(s))
 	router.POST("/recipe/:id/comment", EnsureLoggedIn, postComment(s))
 	router.PUT("/recipe/:id", CanEditRecipe(s), updateRecipe(s))
+	router.PUT("/recipe/:id/publish", CanEditRecipe(s), publishRecipe(s))
 	router.GET("/recipes", getRecipes(s, false))
 	router.POST("/recipes", EnsureLoggedIn, saveRecipe(s))
 	router.GET("/recipes/mine", EnsureLoggedIn, getRecipes(s, true))
@@ -113,6 +114,22 @@ func updateRecipe(s core.RecipeService) gin.HandlerFunc {
 			return
 		}
 		ok(c, recipe)
+	}
+}
+
+func publishRecipe(s core.RecipeService) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+		if err != nil {
+			badRequest(c, respError(err, "invalid id"))
+			return
+		}
+		err = s.PublishRecipe(id)
+		if err != nil {
+			serverError(c, err)
+			return
+		}
+		ok(c, nil)
 	}
 }
 

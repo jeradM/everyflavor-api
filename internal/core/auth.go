@@ -23,6 +23,13 @@ func (a *App) CanViewRecipe(userID, recipeID uint64) (bool, error) {
 }
 
 func (a *App) CanEditRecipe(userID, recipeID uint64) (bool, error) {
+	p, err := a.Store.Auth().IsPublic(recipeID, "recipes")
+	if err != nil {
+		return false, err
+	}
+	if p {
+		return false, nil
+	}
 	o, err := a.Store.Auth().IsOwner(userID, recipeID, "recipes")
 	if err != nil {
 		return false, err

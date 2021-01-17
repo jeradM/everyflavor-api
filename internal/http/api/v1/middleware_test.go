@@ -2,11 +2,12 @@ package v1
 
 import (
 	"everyflavor/internal/http/api/v1/view"
-	"github.com/gin-gonic/gin"
-	"github.com/stretchr/testify/assert"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/gin-gonic/gin"
+	"github.com/stretchr/testify/assert"
 )
 
 func setupMiddlewareRouter(u *view.User) (*httptest.ResponseRecorder, *gin.Context, *gin.Engine) {
@@ -24,7 +25,7 @@ func TestEnsureLoggedInSucceeds(t *testing.T) {
 	assert.Equal(t, http.StatusOK, w.Code)
 }
 
-func TestEnsureLoggedInFails(t *testing.T) {
+func TestEnsureLoggedInUnauthorized(t *testing.T) {
 	w, _, g := setupMiddlewareRouter(nil)
 	g.GET("EnsureLoggedIn", EnsureLoggedIn)
 
@@ -42,7 +43,34 @@ func TestEnsureRoleSucceeds(t *testing.T) {
 	assert.Equal(t, http.StatusOK, w.Code)
 }
 
-func TestEnsureRoleFails(t *testing.T) {
+func TestEnsureRoleSucceedsWithMultiple(t *testing.T) {
+	w, _, g := setupMiddlewareRouter(&view.User{Roles: []view.UserRole{{Authority: "user"}, {Authority: "admin"}}})
+	g.GET("EnsureAdmin", EnsureRole("admin"))
+
+	r, _ := http.NewRequest("GET", "/EnsureAdmin", nil)
+	g.ServeHTTP(w, r)
+	assert.Equal(t, http.StatusOK, w.Code)
+}
+
+func TestEnsureRoleForbiddenWhenEmpty(t *testing.T) {
+	w, _, g := setupMiddlewareRouter(&view.User{Roles: []view.UserRole{}})
+	g.GET("EnsureRole", EnsureRole("role"))
+
+	r, _ := http.NewRequest("GET", "/EnsureRole", nil)
+	g.ServeHTTP(w, r)
+	assert.Equal(t, http.StatusForbidden, w.Code)
+}
+
+func TestEnsureRoleForbiddenWhenNil(t *testing.T) {
+	w, _, g := setupMiddlewareRouter(&view.User{Roles: nil})
+	g.GET("EnsureRole", EnsureRole("role"))
+
+	r, _ := http.NewRequest("GET", "/EnsureRole", nil)
+	g.ServeHTTP(w, r)
+	assert.Equal(t, http.StatusForbidden, w.Code)
+}
+
+func TestEnsureRoleForbidden(t *testing.T) {
 	w, _, g := setupMiddlewareRouter(&view.User{Roles: []view.UserRole{{Authority: "user"}}})
 	g.GET("EnsureAdmin", EnsureRole("admin"))
 

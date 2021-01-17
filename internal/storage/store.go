@@ -71,6 +71,7 @@ type RecipeStore interface {
 	List(*model.RecipeParams) ([]model.Recipe, uint64, error)
 	Insert(*model.Recipe, sqlx.Ext) error
 	Update(*model.Recipe, sqlx.Ext) error
+	Publish(uint64, sqlx.Execer) error
 	AddComment(*model.RecipeComment) error
 	ListFlavors(model.RecipeFlavorParams) ([]model.RecipeFlavor, error)
 	ReplaceFlavors(recipeID uint64, flavors []model.RecipeFlavor, tx sqlx.Execer) error
