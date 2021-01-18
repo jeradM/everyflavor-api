@@ -141,6 +141,8 @@ var (
 
 func batchInsertMap(b *model.Batch) map[string]interface{} {
 	return map[string]interface{}{
+		"created_at":     sq.Expr("NOW()"),
+		"updated_at":     sq.Expr("NOW()"),
 		"batch_size_m":   b.BatchSizeM,
 		"batch_strength": b.BatchStrength,
 		"batch_vg_m":     b.BatchVgM,
@@ -155,6 +157,7 @@ func batchInsertMap(b *model.Batch) map[string]interface{} {
 
 func batchUpdateMap(b *model.Batch) map[string]interface{} {
 	return map[string]interface{}{
+		"updated_at":     sq.Expr("NOW()"),
 		"batch_size_m":   b.BatchSizeM,
 		"batch_strength": b.BatchStrength,
 		"batch_vg_m":     b.BatchVgM,

@@ -88,10 +88,12 @@ var (
 
 func flavorStashInsertMap(f *model.FlavorStash) map[string]interface{} {
 	return map[string]interface{}{
-		"on_hand_m": f.OnHandM,
-		"density_m": f.DensityM,
-		"vg":        f.Vg,
-		"flavor_id": f.FlavorID,
-		"owner_id":  f.OwnerID,
+		"created_at": sq.Expr("NOW()"),
+		"updated_at": sq.Expr("NOW()"),
+		"on_hand_m":  f.OnHandM,
+		"density_m":  f.DensityM,
+		"vg":         f.Vg,
+		"flavor_id":  f.FlavorID,
+		"owner_id":   f.OwnerID,
 	}
 }

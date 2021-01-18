@@ -115,12 +115,19 @@ var (
 
 func flavorInsertMap(f *model.Flavor) map[string]interface{} {
 	return map[string]interface{}{
-		"flavors.vendor_id": f.VendorID,
-		"flavors.name":      f.Name,
-		"flavors.aliases":   f.Aliases,
+		"flavors.created_at": sq.Expr("NOW()"),
+		"flavors.updated_at": sq.Expr("NOW()"),
+		"flavors.vendor_id":  f.VendorID,
+		"flavors.name":       f.Name,
+		"flavors.aliases":    f.Aliases,
 	}
 }
 
 func flavorUpdateMap(f *model.Flavor) map[string]interface{} {
-	return flavorInsertMap(f)
+	return map[string]interface{}{
+		"flavors.updated_at": sq.Expr("NOW()"),
+		"flavors.vendor_id":  f.VendorID,
+		"flavors.name":       f.Name,
+		"flavors.aliases":    f.Aliases,
+	}
 }

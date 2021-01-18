@@ -94,6 +94,8 @@ func (r *vendorStore) List() ([]model.Vendor, uint64, error) {
 func (r *vendorStore) Insert(vendor *model.Vendor, tx sqlx.Execer) error {
 	query, args, err := sq.Insert("vendors").
 		SetMap(map[string]interface{}{
+			"created_at":   sq.Expr("NOW()"),
+			"updated_at":   sq.Expr("NOW()"),
 			"abbreviation": vendor.Abbreviation,
 			"name":         vendor.Name,
 			"aliases":      vendor.Aliases,
@@ -109,6 +111,7 @@ func (r *vendorStore) Insert(vendor *model.Vendor, tx sqlx.Execer) error {
 func (r *vendorStore) Update(vendor *model.Vendor, tx sqlx.Execer) error {
 	query, args, err := sq.Update("vendors").
 		SetMap(map[string]interface{}{
+			"updated_at":   sq.Expr("NOW()"),
 			"abbreviation": vendor.Abbreviation,
 			"name":         vendor.Name,
 			"aliases":      vendor.Aliases,

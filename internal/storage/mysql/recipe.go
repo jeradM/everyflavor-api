@@ -190,6 +190,8 @@ func (r *recipeStore) Publish(recipeID uint64, tx sqlx.Execer) error {
 func (r *recipeStore) AddComment(c *model.RecipeComment) error {
 	q, args, err := sq.Insert("recipe_comments").
 		SetMap(map[string]interface{}{
+			"created_at":  sq.Expr("NOW()"),
+			"updated_at":  sq.Expr("NOW()"),
 			"content":     c.Content,
 			"recipe_id":   c.RecipeID,
 			"owner_id":    c.OwnerID,
@@ -214,9 +216,11 @@ func (r *recipeStore) AddComment(c *model.RecipeComment) error {
 func (r *recipeStore) InsertRating(m *model.RecipeRating, tx sqlx.Execer) error {
 	q, args, err := sq.Insert("recipe_ratings").
 		SetMap(map[string]interface{}{
-			"rating":    m.Rating,
-			"recipe_id": m.RecipeID,
-			"owner_id":  m.OwnerID,
+			"created_at": sq.Expr("NOW()"),
+			"updated_at": sq.Expr("NOW()"),
+			"rating":     m.Rating,
+			"recipe_id":  m.RecipeID,
+			"owner_id":   m.OwnerID,
 		}).
 		ToSql()
 	if err != nil {
@@ -537,11 +541,20 @@ var (
 )
 
 func recipeInsertMap(r *model.Recipe) map[string]interface{} {
+	var c interface{}
+	if r.CreatedAt != nil {
+		c = r.CreatedAt
+	} else {
+		c = sq.Expr("NOW()")
+	}
 	return map[string]interface{}{
+		"created_at":   c,
+		"updated_at":   sq.Expr("NOW()"),
 		"owner_id":     r.OwnerID,
 		"current":      1,
 		"description":  r.Description,
-		"public":       r.Public,
+		"public":       false,
+		"published_at": nil,
 		"remix_of_id":  r.RemixOfID,
 		"snv":          r.Snv,
 		"steep_days":   r.SteepDays,
@@ -556,6 +569,7 @@ func recipeInsertMap(r *model.Recipe) map[string]interface{} {
 
 func recipeUpdateMap(r *model.Recipe) map[string]interface{} {
 	return map[string]interface{}{
+		"updated_at":   sq.Expr("NOW()"),
 		"owner_id":     r.OwnerID,
 		"description":  r.Description,
 		"public":       r.Public,

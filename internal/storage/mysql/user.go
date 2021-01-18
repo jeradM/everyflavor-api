@@ -3,6 +3,7 @@ package mysql
 import (
 	"everyflavor/internal/storage"
 	"everyflavor/internal/storage/model"
+
 	"golang.org/x/crypto/bcrypt"
 
 	sq "github.com/Masterminds/squirrel"
@@ -220,14 +221,21 @@ var (
 
 func userInsertMap(u *model.User) map[string]interface{} {
 	return map[string]interface{}{
-		"username": u.Username,
-		"email":    u.Email,
-		"password": u.Password,
+		"created_at": sq.Expr("NOW()"),
+		"updated_at": sq.Expr("NOW()"),
+		"username":   u.Username,
+		"email":      u.Email,
+		"password":   u.Password,
 	}
 }
 
 func userUpdateMap(u *model.User) map[string]interface{} {
-	return userInsertMap(u)
+	return map[string]interface{}{
+		"updated_at": sq.Expr("NOW()"),
+		"username":   u.Username,
+		"email":      u.Email,
+		"password":   u.Password,
+	}
 }
 
 func roleInsertMap(r *model.Role) map[string]interface{} {

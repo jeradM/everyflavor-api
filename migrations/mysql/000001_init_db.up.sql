@@ -1,9 +1,11 @@
+SET GLOBAL sql_mode=(SELECT REPLACE(@@sql_mode,'ONLY_FULL_GROUP_BY',''));
+
 CREATE TABLE IF NOT EXISTS batches
 (
     id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
-    created_at datetime(3) DEFAULT NOW(),
-    updated_at datetime(3) DEFAULT NOW(),
-    deleted_at datetime(3) DEFAULT NULL,
+    created_at datetime DEFAULT NULL,
+    updated_at datetime DEFAULT NULL,
+    deleted_at datetime DEFAULT NULL,
     batch_size_m bigint(20) unsigned DEFAULT NULL,
     batch_strength smallint(3) unsigned DEFAULT NULL,
     batch_vg_m mediumint(6) unsigned DEFAULT NULL,
@@ -23,9 +25,9 @@ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 CREATE TABLE IF NOT EXISTS flavors
 (
     id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
-    created_at datetime(3) DEFAULT NOW(),
-    updated_at datetime(3) DEFAULT NOW(),
-    deleted_at datetime(3) DEFAULT NULL,
+    created_at datetime DEFAULT NULL,
+    updated_at datetime DEFAULT NULL,
+    deleted_at datetime DEFAULT NULL,
     vendor_id bigint(20) unsigned DEFAULT NULL,
     name varchar(191) DEFAULT NULL,
     aliases longtext DEFAULT NULL,
@@ -39,8 +41,8 @@ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 CREATE TABLE IF NOT EXISTS flavor_ratings
 (
     id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
-    created_at datetime(3) DEFAULT NOW(),
-    updated_at datetime(3) DEFAULT NOW(),
+    created_at datetime DEFAULT NULL,
+    updated_at datetime DEFAULT NULL,
     flavor_id bigint(20) unsigned DEFAULT NULL,
     rating bigint(20) unsigned DEFAULT NULL,
     owner_id bigint(20) unsigned DEFAULT NULL,
@@ -53,9 +55,9 @@ CREATE TABLE IF NOT EXISTS flavor_ratings
 CREATE TABLE IF NOT EXISTS flavor_reviews
 (
     id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
-    created_at datetime(3) DEFAULT NOW(),
-    updated_at datetime(3) DEFAULT NOW(),
-    deleted_at datetime(3) DEFAULT NULL,
+    created_at datetime DEFAULT NULL,
+    updated_at datetime DEFAULT NULL,
+    deleted_at datetime DEFAULT NULL,
     rating_id bigint(20) unsigned DEFAULT NULL,
     content longtext DEFAULT NULL,
     PRIMARY KEY (id),
@@ -67,9 +69,9 @@ CREATE TABLE IF NOT EXISTS flavor_reviews
 CREATE TABLE IF NOT EXISTS users
 (
     id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
-    created_at datetime(3) DEFAULT NOW(),
-    updated_at datetime(3) DEFAULT NOW(),
-    deleted_at datetime(3) DEFAULT NULL,
+    created_at datetime DEFAULT NULL,
+    updated_at datetime DEFAULT NULL,
+    deleted_at datetime DEFAULT NULL,
     username varchar(191) NOT NULL,
     email varchar(191) DEFAULT NULL,
     password longtext DEFAULT NULL,
@@ -83,9 +85,9 @@ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 CREATE TABLE IF NOT EXISTS recipes
 (
     id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
-    created_at datetime(3) DEFAULT NOW(),
-    updated_at datetime(3) DEFAULT NOW(),
-    deleted_at datetime(3) DEFAULT NULL,
+    created_at datetime DEFAULT NULL,
+    updated_at datetime DEFAULT NULL,
+    deleted_at datetime DEFAULT NULL,
     owner_id bigint(20) unsigned DEFAULT NULL,
     current tinyint(1) DEFAULT NULL,
     description longtext DEFAULT NULL,
@@ -119,9 +121,9 @@ CREATE TABLE IF NOT EXISTS recipe_collaborators
 CREATE TABLE IF NOT EXISTS recipe_comments
 (
     id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
-    created_at datetime(3) DEFAULT NOW(),
-    updated_at datetime(3) DEFAULT NOW(),
-    deleted_at datetime(3) DEFAULT NULL,
+    created_at datetime DEFAULT NULL,
+    updated_at datetime DEFAULT NULL,
+    deleted_at datetime DEFAULT NULL,
     content text DEFAULT NULL,
     recipe_id bigint(20) unsigned DEFAULT NULL,
     owner_id bigint(20) unsigned DEFAULT NULL,
@@ -156,8 +158,8 @@ CREATE TABLE IF NOT EXISTS recipe_flavor_substitutions
 CREATE TABLE IF NOT EXISTS recipe_ratings
 (
     id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
-    created_at datetime(3) DEFAULT NOW(),
-    updated_at datetime(3) DEFAULT NOW(),
+    created_at datetime DEFAULT NULL,
+    updated_at datetime DEFAULT NULL,
     rating tinyint(1) unsigned DEFAULT NULL,
     recipe_id bigint(20) unsigned DEFAULT NULL,
     owner_id bigint(20) unsigned DEFAULT NULL,
@@ -196,9 +198,9 @@ CREATE TABLE IF NOT EXISTS user_roles
 CREATE TABLE IF NOT EXISTS vendors
 (
     id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
-    created_at datetime(3) DEFAULT NOW(),
-    updated_at datetime(3) DEFAULT NOW(),
-    deleted_at datetime(3) DEFAULT NULL,
+    created_at datetime DEFAULT NULL,
+    updated_at datetime DEFAULT NULL,
+    deleted_at datetime DEFAULT NULL,
     abbreviation varchar(191) DEFAULT NULL,
     name longtext DEFAULT NULL,
     aliases longtext DEFAULT NULL,
@@ -211,9 +213,9 @@ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 CREATE TABLE IF NOT EXISTS tags
 (
     id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
-    created_at datetime(3) DEFAULT NOW(),
-    updated_at datetime(3) DEFAULT NOW(),
-    deleted_at datetime(3) DEFAULT NULL,
+    created_at datetime DEFAULT NULL,
+    updated_at datetime DEFAULT NULL,
+    deleted_at datetime DEFAULT NULL,
     tag varchar(40) NOT NULL,
     PRIMARY KEY (id),
     INDEX idx_tags_tag (tag)
